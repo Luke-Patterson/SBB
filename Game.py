@@ -2,20 +2,28 @@ from Heroes import *
 from Treasures import *
 from Characters import *
 from Heroes import *
+from Player import *
+from Spells import *
 from copy import deepcopy
 import itertools
 import random
 
 class Game:
-    def __init__(self):
+    def __init__(self, verbose_lvl=2, seed=None):
         self.char_pool=[]
         self.treasures = []
         self.turn_counter = 0
         self.players=[]
+        self.winner = None
+        self.verbose_lvl = verbose_lvl
+        if seed!=None:
+            self.seed=seed
+        else:
+            self.seed=random.randint(1,10000000000)
+        random.seed(self.seed)
 
     # functions for start of the game.
     def start_game(self,players):
-
         # set up initial states
         self.players=players
         for p in self.players:
@@ -28,7 +36,9 @@ class Game:
         # have players select heros
         self.select_heroes_phase()
 
-        import pdb; pdb.set_trace()
+        # start the turns
+        while self.winner==None:
+            self.complete_turn()
 
     def load_hero_list(self):
         # master_hero_list is from Heroes..py
@@ -59,8 +69,8 @@ class Game:
         for p in self.players:
             choices[p] = random.sample(self.available_heroes, 4)
             for h in choices[p]:
-                self.available_heroes.remove(p)
-            unchosen_heroes = p.select_hero(choices[p])
+                self.available_heroes.remove(h)
+            unchosen_heroes = p.choose_hero(choices[p])
             for h in unchosen_heroes:
                 self.available_heroes.append(h)
 
@@ -74,6 +84,9 @@ class Game:
 
     def start_of_turn_effects(self):
         self.turn_counter += 1
+        if self.verbose_lvl>=1:
+            print('Round', self.turn_counter, 'starts')
+
         for p in self.players:
             p.start_of_turn_effects()
 
@@ -82,11 +95,30 @@ class Game:
             p.do_shop_phase()
 
     def init_battle_phase(self):
-        pass
+        for p in self.players:
+            p.deploy_for_battle()
+        self.pair_opponents()
 
     def end_of_turn_effects(self):
         for p in self.players:
             p.end_of_turn_effects()
+        self.check_for_winner()
+
+    def check_for_winner(self):
+        pass
+
+    # function to pair opponents
+    # TODO: currently randomly selects opponents. Need to adjust to match SBB algo
+    def pair_opponents(self):
+        queue = self.players.copy()
+        self.combat_pairs={}
+        while queue != []:
+            plyr1 = random.choice(queue)
+            queue.remove(plyr1)
+            plyr2 = random.choice(queue)
+            queue.remove(plyr2)
+            self.combat_pairs[plyr1] = plyr2
+            self.combat_pairs[plyr2] = plyr1
 
     # functions for players to call generate a shop
     def generate_shop(self, player):
@@ -97,7 +129,11 @@ class Game:
         else:
             shop_size=5
         elig_pool = [i for i in self.char_pool if i.lvl <= player.lvl]
+        for i in elig_pool:
+            i.zone= 'pool'
         elig_spell_pool = [i for i in self.spells if i.lvl <= player.lvl]
-        shop = random.sample(shop_size, elig_pool) + random.sample(1, elig_spell_pool)
-
+        shop = random.sample(list(elig_pool),shop_size)
+        for i in shop:
+            self.char_pool.remove(i)
+        shop = shop + random.sample(list(elig_spell_pool),1)
         return(shop)

@@ -1,7 +1,8 @@
-
+from copy import deepcopy
 
 class Hero:
     def __init__(self, name, abils=None, life=40):
+        self.name=name
         self.life=life
         self.abils=abils
 
@@ -16,7 +17,7 @@ Gepetto = Hero(name='Gepetto')
 Grandmother = Hero(name='Grandmother')
 Gwen = Hero(name='Gwen')
 Hoard_Dragon = Hero(name='Hoard Dragon')
-Jacks_Giant = Hero(name='Jack's Giant')
+Jacks_Giant = Hero(name="Jack's Giant")
 Krampus = Hero(name='Krampus')
 Loki = Hero(name='Loki')
 Mad_Catter = Hero(name='Mad Catter')
@@ -27,7 +28,7 @@ Mordred = Hero(name='Mordred')
 Morgan_le_Fay = Hero(name='Morgan le Fay')
 Mrs_Claus = Hero(name='Mrs. Claus')
 Muerte = Hero(name='Muerte')
-Pans_Shadow = Hero(name='Pan's Shadow')
+Pans_Shadow = Hero(name="Pan's Shadow")
 Peter_Pants = Hero(name='Peter Pants')
 Pied_Piper = Hero(name='Pied Piper')
 Potion_Master = Hero(name='Potion Master')
@@ -44,8 +45,8 @@ Wonder_Waddle = Hero(name='Wonder Waddle')
 Xelhua = Hero(name='Xelhua')
 
 objs=deepcopy(list(locals().keys()))
-master_char_list=[]
+master_hero_list=[]
 for i in objs:
     obj=locals()[i]
     if isinstance(obj, Hero):
-        master_char_list.append(obj)
+        master_hero_list.append(obj)

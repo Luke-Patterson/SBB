@@ -1,7 +1,8 @@
 from copy import deepcopy
 
 class Treasure:
-    def __init__(self, level, abils):
+    def __init__(self,name, level, abils):
+        self.name=name
         self.level=level
         self.abils=abils
 

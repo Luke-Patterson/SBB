@@ -390,7 +390,7 @@ Adventurer = Character(
     abils=[
         Triggered_Effect(
             name='Adventurer Slay effect',
-            effect_func = lambda source: source.owner.gain_xp(1 * (1 + source.upgraded)),
+            effect_func = lambda source: source.owner.gain_exp(1 * (1 + source.upgraded)),
             trigger = Trigger(
                 name = 'Adventurer Slay trigger',
                 type = 'slay'

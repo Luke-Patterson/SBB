@@ -52,7 +52,11 @@ class Player:
     #================= turn order functions==============
 
     def start_of_turn_effects(self):
-        self.current_gold = self.start_turn_gold + self.next_turn_addl_gold
+        self.check_for_triggers('start of turn')
+        if any([i.name=='Piggie Bank' for i in self.treasures]):
+            self.current_gold = self.current_gold + self.start_turn_gold + self.next_turn_addl_gold
+        else:
+            self.current_gold = self.start_turn_gold + self.next_turn_addl_gold
         self.next_turn_addl_gold = 0
         self.spell_played_this_turn = False
 
@@ -329,6 +333,12 @@ class Player:
         self.life -= amt
         if self.game.verbose_lvl>=2:
             print(self,'loses',amt,'life. Life total is now',self.life)
+
+    def life_gain(self, amt):
+        self.life += amt
+        if self.game.verbose_lvl>=2:
+            print(self,'gains',amt,'life. Life total is now',self.life)
+
 
     # check if dead, if so remove self from game
     def check_for_death(self):

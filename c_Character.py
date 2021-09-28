@@ -283,7 +283,6 @@ class Character:
 
     def remove_modifier(self, modifier):
         modifier.source = None
-        modifier.source = None
         self.modifiers.remove(modifier)
         if modifier.oth_reverse_func!=None:
             modifier.oth_reverse_func(self)

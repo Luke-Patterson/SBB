@@ -133,9 +133,9 @@ class Shop_Effect(Effect):
         self.spell_reverse_effect_func = spell_reverse_effect_func
 
     def apply_effect(self, obj):
-        if self.char_effect_func != None and obj.__class__.__name__=='Character':
+        if self.char_effect_func != None and obj.__class__.__name__=='Character' and self.condition(obj):
             self.char_effect_func(obj)
-        if self.spell_effect_func != None and obj.__class__.__name__=='Spell':
+        if self.spell_effect_func != None and obj.__class__.__name__=='Spell' and self.condition(obj):
             self.spell_effect_func(obj)
 
     def reverse_effect(self, char):

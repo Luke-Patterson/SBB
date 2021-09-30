@@ -101,9 +101,14 @@ class Player:
             elif isinstance(selected, Spell)==False and selected.zone!='pool':
                 selected.sell()
             else:
+                # if selected.name=='Cinder-ella' and selected.id==3:
+                #
+                #     print(selected in self.game.char_pool)
+                #     import pdb; pdb.set_trace()
                 selected.purchase(self)
                 self.check_for_upgrades()
                 self.check_effects()
+
 
 
         if self.input_bool('lock shop'):
@@ -229,8 +234,9 @@ class Player:
             limbo_copies.remove(keep_copy)
             for i in limbo_copies:
                 i.scrub_buffs(eob_only=False)
-                self.hand.remove(i)
+                i.remove_from_hand(return_to_pool=False)
                 keep_copy.upgrade_copies.append(i)
+                i.zone = keep_copy.upgrade_copies
             keep_copy.upgraded=True
             treasure_lvl = keep_copy.lvl
             # hard coded blind mouse treasure increase
@@ -290,6 +296,7 @@ class Player:
 
     def gain_gold_next_turn(self, amt):
         self.next_turn_addl_gold += amt
+
     def get_possible_shop_options(self, buy_options):
         # convert combinations to costs
         legal_buy_options=[]
@@ -304,6 +311,8 @@ class Player:
                     legal_buy_options.append(item)
             if isinstance(item, Character) and item.get_cost()<= self.current_gold and len(self.hand)<11:
                 legal_buy_options.append(item)
+
+        assert all([i in buy_options or i=='roll' for i in legal_buy_options])
         return legal_buy_options
 
     def gain_exp(self, amt=1):

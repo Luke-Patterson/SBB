@@ -25,7 +25,8 @@ Hoard_Dragon = Hero(name='Hoard Dragon',
                     name='Hoard Dragon treasure level effect',
                     effect_func= lambda base_lvl: base_lvl + 1
                 )
-            )
+            ),
+            reverse_effect_func = Hoard_Dragon_remove
         )
     ]
 )

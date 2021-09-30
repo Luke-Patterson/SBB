@@ -269,32 +269,33 @@ Lonely_Prince_Transform = Purchase_Effect(
     condition = lambda char: 'Princess' in char.type
 )
 
-# def Lonely_Prince_effect(eff, player):
-#     copy = deepcopy(Lonely_Prince_Transform)
-#     copy.source = eff.source
-#     player.effects.append(copy)
-#
-#
-# def Lonely_Prince_reverse_effect(eff, player):
-#     rm_eff = [i for i in player.effects if i.source==eff.source]
-#     assert len(rm_eff)>0
-#     player.effects.remove(rm_eff[0])
-#
-# Lonely_Prince = Character(
-#     name = 'Lonely Prince',
-#     lvl =2,
-#     alignment='Good',
-#     atk=1,
-#     hlth=1,
-#     type=['Prince'],
-#     abils=[
-#         Player_Effect(
-#             name='Lonely Prince Effect',
-#             effect_func= Lonely_Prince_effect,
-#             reverse_effect_func = Lonely_Prince_reverse_effect
-#         )
-#     ]
-# )
+def Lonely_Prince_effect(eff, player):
+    copy = deepcopy(Lonely_Prince_Transform)
+    copy.source = eff.source
+    player.effects.append(copy)
+
+
+def Lonely_Prince_reverse_effect(eff, player):
+    rm_eff = [i for i in player.effects if i.source==eff.source
+        and i.name=='Lonely Prince Purchase Effect']
+    assert len(rm_eff)>0
+    player.effects.remove(rm_eff[0])
+
+Lonely_Prince = Character(
+    name = 'Lonely Prince',
+    lvl =2,
+    alignment='Good',
+    atk=1,
+    hlth=1,
+    type=['Prince'],
+    abils=[
+        Player_Effect(
+            name='Lonely Prince Effect',
+            effect_func= Lonely_Prince_effect,
+            reverse_effect_func = Lonely_Prince_reverse_effect
+        )
+    ]
+)
 
 Mad_Mim = Character(
     name='Mad Mim',

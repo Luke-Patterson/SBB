@@ -186,7 +186,9 @@ class Game:
         if self.verbose_lvl >=2:
             print(plyrA,'fighting',plyrB)
             print(plyrA,'board:',plyrA.board)
+            print(plyrA,'treasures:',plyrA.treasures)
             print(plyrB,'board:',plyrB.board)
+            print(plyrB,'treasures:',plyrB.treasures)
         # check to see if combat starts
         if self.check_for_end_of_combat(plyrA,plyrB):
             self.end_combat(plyrA,plyrB)

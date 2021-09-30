@@ -47,7 +47,6 @@ class Character:
         if self.game.verbose_lvl>=2:
             print(self.owner, 'purchases', self)
         player.shop.remove(self)
-
         # see if there are any effects to apply on purchase
         for eff in player.effects:
             if isinstance(eff, Purchase_Effect) and eff.condition(self):
@@ -104,20 +103,19 @@ class Character:
             if hasattr(i, 'trigger') and i.trigger.battle_trigger:
                 self.owner.battle_triggers.append(i.trigger)
 
-            if isinstance(i, Player_Effect):
-                self.owner.effects.append(i)
+            # if isinstance(i, Player_Effect):
+            #     self.owner.effects.append(i)
 
 
-    def remove_from_hand(self):
+    def remove_from_hand(self, return_to_pool=True):
         self.owner.hand.remove(self)
         for i in self.abils:
             if hasattr(i, 'trigger'):
                 self.owner.triggers.remove(i.trigger)
             if isinstance(i, Player_Effect):
                 i.reverse_effect(i.source)
-                self.owner.effects.remove(i)
 
-        if self.inshop:
+        if self.inshop and return_to_pool:
             self.game.char_pool.append(self)
             if self.upgraded:
                 for i in self.upgrade_copies:
@@ -302,5 +300,5 @@ class Character:
         elif self.owner==None and self.game.verbose_lvl>=3:
             printed = printed + ' (' + str(self.base_atk) + '/' + str(self.base_hlth) + ')'
         if self.upgraded:
-            printed = printed + ' (gold)'
+            printed = printed + ' [gold]'
         return printed

@@ -5,7 +5,7 @@ from copy import deepcopy
 def Free_Roll_effect(spell):
     plyr = spell.owner
     plyr.roll_shop(free=True)
-
+    
 Free_Roll = Spell(
     name='Free Roll',
     lvl=2,

@@ -39,9 +39,11 @@ class Player_Effect(Effect):
 
     def apply_effect(self, source):
         self.effect_func(self, source.owner)
+        source.owner.effects.append(self)
 
     def reverse_effect(self, source):
         self.reverse_effect_func(self, source.owner)
+        source.owner.effects.remove(self)
 
 # Effect that provides a support bonus for supporting characters
 # Effect is added to a character object's abil attribute
@@ -150,7 +152,7 @@ class Shop_Effect(Effect):
 # depending on the type of trigger.
 class Triggered_Effect(Effect):
     def __init__(self, name:str, trigger, effect_func, condition = lambda obj: True, counter = None):
-        super().__init__(self,name, effect_func, condition = condition)
+        super().__init__(name, effect_func, condition = condition)
         self.trigger = trigger
         self.trigger.source = self
         self.effect_func = effect_func

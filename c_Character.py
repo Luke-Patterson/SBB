@@ -20,16 +20,17 @@ class Character:
         self.base_cost = lvl
         self.current_cost= lvl
         self.owner = None
+        self.last_owner = None
         self.position = None
         self.zone = None
         self.id= None
         self.game = None
         self.keyword_abils = keyword_abils
-        if 'flying' in keyword_abils:
+        if 'flying' in keyword_abils or 'Flying' in keyword_abils:
             self.flying=True
         else:
             self.flying=False
-        if 'ranged' in keyword_abils:
+        if 'ranged' in keyword_abils or 'Ranged' in keyword_abils:
             self.ranged = True
         else:
             self.ranged = False
@@ -122,6 +123,7 @@ class Character:
                     self.game.char_pool.append(i)
                 self.upgrade_copies = []
         self.scrub_buffs(eob_only=False)
+        self.last_owner = self.owner
         self.owner = None
         self.zone = 'pool'
 
@@ -190,7 +192,6 @@ class Character:
 
 
     def dies(self):
-        assert self.owner.board[self.position]==self
 
         self.remove_from_board(death=True)
 
@@ -199,7 +200,11 @@ class Character:
 
     # function to remove a character from the board (but not from a player's control)
     def remove_from_board(self, death=False):
-        self.owner.board[self.position] = None
+
+        # position may be none if the unit's been removed from the owner's control
+        # as part of the death ability (e.g. Polywoggle slaying)
+        if self.position != None:
+            self.owner.board[self.position] = None
 
         # remove effects from being on field
         for i in self.abils:
@@ -228,8 +233,15 @@ class Character:
                     i.apply_effect(self)
 
             # remove any triggers unit uses
-            if hasattr(i, 'trigger') and i.trigger.battle_trigger:
-                self.owner.battle_triggers.remove(i.trigger)
+            if self.owner != None:
+                if hasattr(i, 'trigger') and i.trigger.battle_trigger:
+                    self.owner.battle_triggers.remove(i.trigger)
+            # some units (e.g. after Polywoggle slays) will not have an owner
+            # at this point in the process. We'll use their last owner for that
+            else:
+                if hasattr(i, 'trigger') and i.trigger.battle_trigger and i.trigger \
+                    in self.last_owner.battle_triggers:
+                    self.last_owner.battle_triggers.remove(i.trigger)
 
         self.position = None
         self.damage_taken = 0

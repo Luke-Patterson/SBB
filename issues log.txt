@@ -1,3 +1,2 @@
 Rainbow Unicorn/Labyrinth Minotaur pump not working
-Combat sequencing not correct, same unit keeps attacking until it dies
 Sword of fire and ice might not work

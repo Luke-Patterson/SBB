@@ -1,6 +1,7 @@
 from c_Character import Character
 from copy import deepcopy
 from Effects import *
+import random
 
 Baby_Dragon = Character(
     name='Baby Dragon',
@@ -314,6 +315,30 @@ Mad_Mim = Character(
 )
 
 # Polywoggle
+def Polywoggle_effect(source):
+    elig_pool = [i for i in source.game.char_pool if i.lvl==min(source.owner.lvl+1,6)]
+    selected = random.choice(elig_pool)
+    source.game.char_pool.remove(selected)
+    source.permanent_transform(selected)
+
+Polywoggle = Character(
+    name='Polywoggle',
+    atk=1,
+    hlth=1,
+    alignment='Neutral',
+    lvl=2,
+    type=['Animal'],
+    abils=[
+        Triggered_Effect(
+            name='Polywoggle Slay effect',
+            effect_func = Polywoggle_effect,
+            trigger = Trigger(
+                name = 'Polywoggle Slay trigger',
+                type = 'slay'
+            )
+        )
+    ]
+)
 
 Rainbow_Unicorn_Modifier = Modifier(
     name= 'Rainbow Unicorn Modifier',
@@ -354,7 +379,7 @@ Sherwood_Sureshot = Character(
     hlth=1,
     alignment='Good',
     lvl=2,
-    keyword_abils = ['Ranged'],
+    keyword_abils = ['ranged'],
     type=['Princess']
 )
 
@@ -688,25 +713,25 @@ Sporko = Character(
 # Baba Yaga
 # Baby Bear
 # Cupid
-# Lancelot
-# Lancelot = Character(
-#     name='Lancelot',
-#     atk=7,
-#     hlth=7,
-#     alignment='Good',
-#     lvl=2,
-#     type=['Princess','Mage'],
-#     abils = [
-#         Quest(
-#             name= 'Cinder-ella Quest',
-#             trigger = Trigger(
-#                 name='Cinder-ella Quest Trigger',
-#                 type='cast'
-#             ),
-#             counter = 1
-#         )
-#     ]
-# )
+# Lancelot - placeholder for a lvl 5 char
+Lancelot = Character(
+    name='Lancelot',
+    atk=7,
+    hlth=7,
+    alignment='Good',
+    lvl=5,
+    type=['Prince','Mage'],
+    # abils = [
+    #     Quest(
+    #         name= 'Cinder-ella Quest',
+    #         trigger = Trigger(
+    #             name='Cinder-ella Quest Trigger',
+    #             type='cast'
+    #         ),
+    #         counter = 1
+    #     )
+    # ]
+)
 # Monster Book
 # Nian, Sea Terror
 # Rotten Appletree

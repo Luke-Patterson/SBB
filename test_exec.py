@@ -3,7 +3,8 @@ from datetime import datetime
 
 while True:
     start = datetime.now()
-    g=Game(verbose_lvl=4, seed=9919063018)
+    # g=Game(verbose_lvl=4)
+    g=Game(verbose_lvl=4, seed=7005731409)
     Player1= Player('Player1')
     Player2= Player('Player2')
     Player3= Player('Player3')

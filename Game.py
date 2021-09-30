@@ -242,11 +242,17 @@ class Game:
             # first, if empty, find the next unit
             if sec_plyr.board[active_char_2nd] == None:
                 active_char_2nd = _find_next_unit(active_char_2nd, sec_plyr)
+
             # if not, see if it's the same as the last unit that attacked
+            # if it is not the same unit, that same space will attack again
             elif sec_plyr.board[active_char_2nd] != last_atk_2nd_p:
                 pass
+            # if it is the same unit, find the next unit
             else:
-                active_char_2nd = _find_next_unit(active_char_2nd, sec_plyr)
+                # wrap around the board if we're at position 7
+                if active_char_2nd == 7:
+                    active_char_2nd =0
+                active_char_2nd = _find_next_unit(active_char_2nd + 1, sec_plyr)
 
             # second player attacks
             last_atk_2nd_p = sec_plyr.board[active_char_2nd]
@@ -262,10 +268,15 @@ class Game:
             if first_plyr.board[active_char_1st] == None:
                 active_char_1st = _find_next_unit(active_char_1st, first_plyr)
             # if not, see if it's the same as the last unit that attacked
+            # if it is not the same unit, that same space will attack again
             elif first_plyr.board[active_char_1st] != last_atk_1st_p:
                 pass
+            # if it is the same unit, find the next unit
             else:
-                active_char_1st = _find_next_unit(active_char_1st, first_plyr)
+                # wrap around the board if we're at position 7
+                if active_char_1st == 7:
+                    active_char_1st =0
+                active_char_1st = _find_next_unit(active_char_1st + 1, first_plyr)
 
             # first player attacks
             last_atk_1st_p = first_plyr.board[active_char_1st]

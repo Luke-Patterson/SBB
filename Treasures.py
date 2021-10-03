@@ -106,12 +106,12 @@ Dragon_Nest = Treasure(
 )
 
 def Fairy_Tail_effect(char):
-    char.atk_mod+=1
-    char.hlth_mod+=1
+    char.change_atk_mod(1)
+    char.change_hlth_mod(1)
 
 def Fairy_Tail_reverse_effect(char):
-    char.atk_mod-=1
-    char.hlth_mod-=1
+    char.change_atk_mod(-1)
+    char.change_hlth_mod(-1)
 
 
 Fairy_Tail = Treasure(
@@ -596,16 +596,16 @@ def Sword_of_Fire_and_Ice_effect(char):
         char.add_modifier(Sword_of_Fire_and_Ice_Atk_Modifier)
 
 def Sword_of_Fire_and_Ice_reverse_effect(char):
-    if Sword_of_Fire_and_Ice_Health_Modifier in char.modifier:
+    if Sword_of_Fire_and_Ice_Health_Modifier in char.modifiers:
         char.remove_modifier(Sword_of_Fire_and_Ice_Health_Modifier)
 
-    if Sword_of_Fire_and_Ice_Atk_Modifier in char.modifier:
+    if Sword_of_Fire_and_Ice_Atk_Modifier in char.modifiers:
         char.remove_modifier(Sword_of_Fire_and_Ice_Atk_Modifier)
 
 
 Sword_of_Fire_and_Ice = Treasure(
     name = 'Sword of Fire and Ice',
-    lvl = 5,
+    lvl = 2,
     abils = [
         Global_Static_Effect(
             name = 'Sword of Fire and Ice Effect',
@@ -618,12 +618,12 @@ Sword_of_Fire_and_Ice = Treasure(
 # Tree of Life
 
 def Embiggening_Stone_effect(char):
-    char.atk_mod+=15
-    char.hlth_mod+=15
+    char.change_atk_mod(15)
+    char.change_hlth_mod(15)
 
 def Embiggening_Stone_reverse_effect(char):
-    char.atk_mod-=15
-    char.hlth_mod-=15
+    char.change_atk_mod(-15)
+    char.change_hlth_mod(-15)
 
 Embiggening_Stone= Treasure(
     name='Embiggening Stone',

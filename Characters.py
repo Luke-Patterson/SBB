@@ -14,10 +14,10 @@ Baby_Dragon = Character(
 )
 
 def Baby_Root_support_effect(char, source):
-    char.hlth_mod += 3 * (1+ source.upgraded)
+    char.change_hlth_mod(3 * (1+ source.upgraded))
 
 def Baby_Root_reverse_effect(char, source):
-    char.hlth_mod -= 3 * (1+ source.upgraded)
+    char.change_hlth_mod(-3 * (1+ source.upgraded))
 
 Baby_Root = Character(
     name='Baby Root',
@@ -130,12 +130,12 @@ Crafty = Character(
 )
 
 def Fanny_support_effect(char, source):
-    char.atk_mod += 2 * (1+ source.upgraded)
-    char.hlth_mod += 2 * (1+ source.upgraded)
+    char.change_atk_mod(2 * (1+ source.upgraded))
+    char.change_hlth_mod(2 * (1+ source.upgraded))
 
 def Fanny_reverse_effect(char, source):
-    char.atk_mod -= 2 * (1+ source.upgraded)
-    char.hlth_mod -= 2 * (1+ source.upgraded)
+    char.change_atk_mod(-2 * (1+ source.upgraded))
+    char.change_hlth_mod(-2 * (1+ source.upgraded))
 
 Fanny = Character(
     name='Fanny',
@@ -174,7 +174,7 @@ Happy_Little_Tree= Character(
     abils=[
         Triggered_Effect(
             name='Happy Little Tree Effect',
-            effect_func = lambda source: source.increase_hlth_mod( 2 * (1+source.upgraded)),
+            effect_func = lambda source: source.change_hlth_mod( 2 * (1+source.upgraded)),
             trigger = Trigger(
                 name='Happy Little Tree Trigger',
                 type='end of turn'
@@ -228,7 +228,7 @@ Labyrinth_Minotaur_Modifier = Modifier(
 
 Labyrinth_Minotaur = Character(
     name='Labyrinth Minotaur',
-    atk=5,
+    atk=4,
     hlth=1,
     alignment='Evil',
     lvl=2,
@@ -243,12 +243,6 @@ Labyrinth_Minotaur = Character(
         )
     ]
 )
-
-def Mad_Mim_support_effect(char, source):
-    char.hlth_mod += 3 * (1+ source.upgraded)
-
-def Mad_Mim_reverse_effect(char, source):
-    char.hlth_mod -= 3 * (1+ source.upgraded)
 
 
 Frog_Prince = Character(
@@ -298,6 +292,13 @@ Lonely_Prince = Character(
     ]
 )
 
+
+def Mad_Mim_support_effect(char, source):
+    char.hlth_mod += 3 * (1+ source.upgraded)
+
+def Mad_Mim_reverse_effect(char, source):
+    char.hlth_mod -= 3 * (1+ source.upgraded)
+
 Mad_Mim = Character(
     name='Mad Mim',
     atk=0,
@@ -318,7 +319,6 @@ Mad_Mim = Character(
 def Polywoggle_effect(source):
     elig_pool = [i for i in source.game.char_pool if i.lvl==min(source.owner.lvl+1,6)]
     selected = random.choice(elig_pool)
-    source.game.char_pool.remove(selected)
     source.permanent_transform(selected)
 
 Polywoggle = Character(
@@ -349,7 +349,7 @@ Rainbow_Unicorn_Modifier = Modifier(
 Rainbow_Unicorn = Character(
     name='Rainbow Unicorn',
     atk=1,
-    hlth=5,
+    hlth=4,
     alignment='Good',
     lvl=2,
     type=['Animal'],
@@ -384,8 +384,8 @@ Sherwood_Sureshot = Character(
 )
 
 def Wizards_Familiar_effect(source):
-    source.increase_atk_mod(1 * (1+source.upgraded))
-    source.increase_hlth_mod(1 * (1+source.upgraded))
+    source.change_atk_mod(1 * (1+source.upgraded))
+    source.change_hlth_mod(1 * (1+source.upgraded))
 
 Wizards_Familiar = Character(
     name = "Wizard's Familiar",
@@ -444,18 +444,44 @@ Brave_Princess = Character(
     ]
 )
 
-# Darkwood Creeper
-
+# Darkwood_Creeper_trig_effect = Triggered_Effect(
+#     name='Darkwood Creeper triggered effect',
+#     trigger= Trigger(
+#         name='Darkwood Creeper trigger',
+#         type='survive damage'
+#     ),
+#     effect_func= lambda source: source.change_atk_mod(1)
+# )
+#
+# def Darkwood_Creeper_effect(char):
+#
+# Darkwood_Creeper_reverse_effect
+#
+# # Darkwood Creeper
+# Darkwood_Creeper = Creature(
+#     name='Darkwood Creeper',
+#     atk=0,
+#     hlth=3,
+#     alignment='Evil',
+#     lvl=3,
+#     type=['Treant'],
+#     abils=[
+#         Global_Static_Effect(
+#             name='Darkwood Creeper effect',
+#             effect_func =
+#         )
+#     ]
+# )
 # Dubly
 
 # Good Witch of the North
 def Good_Witch_support_effect(char, source):
-    char.atk_mod += 2 * (1+ source.upgraded)
-    char.hlth_mod += 3 * (1 + source.upgraded)
+    char.change_atk_mod(2 * (1+ source.upgraded))
+    char.change_hlth_mod(3 * (1 + source.upgraded))
 
 def Good_Witch_reverse_effect(char, source):
-    char.atk_mod -= 2 * (1+ source.upgraded)
-    char.hlth_mod -= 3 * (1+ source.upgraded)
+    char.change_atk_mod(2 * (1+ source.upgraded))
+    char.change_hlth_mod(-3 * (1+ source.upgraded))
 
 Good_Witch_of_the_North = Character(
     name='Good Witch of the North',
@@ -501,7 +527,7 @@ Spell_Weaver = Character(
     abils=[
         Triggered_Effect(
             name='Spell Weaver Effect',
-            effect_func = lambda source: source.increase_atk_mod(1 * (1+source.upgraded)),
+            effect_func = lambda source: source.change_atk_mod(1 * (1+source.upgraded)),
             trigger = Trigger(
                 name='Spell Weaver Trigger',
                 type='cast'
@@ -548,8 +574,8 @@ Tweedle_Dee = Character(
 )
 
 def Vainpire_effect(source):
-    source.increase_atk_mod(1 * (1+source.upgraded))
-    source.increase_hlth_mod(1 * (1+source.upgraded))
+    source.change_atk_mod(1 * (1+source.upgraded))
+    source.change_hlth_mod(1 * (1+source.upgraded))
 
 # Vain-Pire
 Vainpire = Character(
@@ -573,12 +599,12 @@ Vainpire = Character(
 
 
 def Wicked_Witch_support_effect(char, source):
-    char.atk_mod += 3 * (1+ source.upgraded)
-    char.hlth_mod += 2 * (1 + source.upgraded)
+    char.change_atk_mod(3 * (1+ source.upgraded))
+    char.change_hlth_mod(2 * (1 + source.upgraded))
 
 def Wicked_Witch_reverse_effect(char, source):
-    char.atk_mod -= 3 * (1+ source.upgraded)
-    char.hlth_mod -= 2 * (1+ source.upgraded)
+    char.change_atk_mod(-3 * (1+ source.upgraded))
+    char.change_hlth_mod(-2 * (1+ source.upgraded))
 
 Wicked_Witch_of_the_West = Character(
     name='Wicked Witch of the West',
@@ -684,10 +710,10 @@ Sheep_in_Wolfs_Clothing = Character(
 
 # Sporko
 def Sporko_support_effect(char, source):
-    char.atk_mod += 5 * (1+ source.upgraded)
+    char.change_atk_mod(5 * (1+ source.upgraded))
 
 def Sporko_reverse_effect(char, source):
-    char.atk_mod -= 5 * (1+ source.upgraded)
+    char.change_atk_mod(-5 * (1+ source.upgraded))
 
 Sporko = Character(
     name='Sporko',
@@ -734,6 +760,24 @@ Lancelot = Character(
 )
 # Monster Book
 # Nian, Sea Terror
+Nian_Sea_Terror = Character(
+    name='Nian, Sea Terror',
+    atk=10,
+    hlth=10,
+    alignment='Evil',
+    lvl=5,
+    type=['Monster'],
+    # abils = [
+    #     Quest(
+    #         name= 'Cinder-ella Quest',
+    #         trigger = Trigger(
+    #             name='Cinder-ella Quest Trigger',
+    #             type='cast'
+    #         ),
+    #         counter = 1
+    #     )
+    # ]
+)
 # Rotten Appletree
 # Soltak Ancient
 # Southern Siren
@@ -747,10 +791,10 @@ Lancelot = Character(
 # Great Pumpkin King
 # Grumblegore
 def Grumblegore_support_effect(char, source):
-    char.atk_mod += 10 * (1+ source.upgraded)
+    char.change_atk_mod(10 * (1+ source.upgraded))
 
 def Grumblegore_reverse_effect(char, source):
-    char.atk_mod -= 10 * (1+ source.upgraded)
+    char.change_atk_mod(-10 * (1+ source.upgraded))
 
 Grumblegore = Character(
     name='Grumblegore',
@@ -776,10 +820,10 @@ Grumblegore = Character(
 # Shoulder Faeries
 # The Green Knight
 def Green_Knight_support_effect(char, source):
-    char.hlth_mod += 10 * (1+ source.upgraded)
+    char.change_hlth_mod(10 * (1+ source.upgraded))
 
 def Green_Knight_reverse_effect(char, source):
-    char.hlth_mod -= 10 * (1+ source.upgraded)
+    char.change_hlth_mod(-10 * (1+ source.upgraded))
 
 Green_Knight = Character(
     name='The Green Knight',

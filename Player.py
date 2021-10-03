@@ -14,6 +14,8 @@ class Player:
         # 1-4 is the front row from left to right, 5-7 is the back row
         self.board={1:None, 2:None, 3:None, 4:None, 5:None, 6:None, 7:None}
         self.hand=[]
+        # track what chars went into hand this turn
+        self.to_hand_this_turn=[]
         # list to hold  units used for an upgrade separate
         self.upgrade_limbo=[]
         self.shop=[]
@@ -28,6 +30,7 @@ class Player:
         self.logic=logic
         self.spell_played_this_turn = False
         self.opponent = None
+        self.last_opponent = None
         self.dead = False
         self.effects=[]
         self.triggers=[]
@@ -35,6 +38,10 @@ class Player:
         self.battle_triggers=[]
         # effects specific to a battle
         self.battle_effects=[]
+        # track the first char to die
+        self.first_char_dead = None
+        # track what is going into the next shop
+        self.next_shop = []
 
     def choose_hero(self, choices):
         # force a hero for testing
@@ -57,12 +64,15 @@ class Player:
             self.current_gold = self.current_gold + self.start_turn_gold + self.next_turn_addl_gold
         else:
             self.current_gold = self.start_turn_gold + self.next_turn_addl_gold
+
+        # reset turn-specific trackers
         self.next_turn_addl_gold = 0
         self.spell_played_this_turn = False
+        self.first_char_dead = None
 
     def do_shop_phase(self):
         if self.locked_shop==False:
-            self.shop = self.game.generate_shop(self)
+            self.roll_shop(free=True)
 
         # obsolete code, chunking it out into choices for individual actions, as too many actions are not independent
         # # get all possible combinations of actions one could do at current shop
@@ -76,6 +86,12 @@ class Player:
         # legal_choices = self.get_possible_shop_options(combinations)
         #
         # choice = self.input_choose(legal_choices)
+        for i in self.next_shop:
+            for eff in self.effects:
+                if isinstance(eff, Shop_Effect):
+                    eff.apply_effect(i)
+            self.shop.append(i)
+        self.next_shop = []
 
         while True:
             # generate options list: buy each item in the shop, roll, or pass
@@ -126,7 +142,7 @@ class Player:
         for i in self.shop:
             i.scrub_buffs(eob_only=False)
             i.owner = None
-            if isinstance(i, Character):
+            if isinstance(i, Character) and i.inshop:
                 self.game.char_pool.append(i)
 
         self.shop = []
@@ -139,7 +155,7 @@ class Player:
         if free==False:
             self.current_gold -=1
         if self.game.verbose_lvl >=2:
-            print(self, 'rolls')
+            print(self, 'rolls shop')
 
     # deploy characters from hand to field
     def deploy_for_battle(self):
@@ -172,14 +188,16 @@ class Player:
 
     def end_of_turn_effects(self):
         self.gain_exp()
+        self.check_for_triggers('end of turn')
+
         # remove all EOB modifiers from every character
         for i in self.hand:
             i.scrub_buffs(eob_only=True)
 
-        self.check_for_triggers('end of turn')
-
         if self.start_turn_gold<12:
             self.start_turn_gold += 1
+
+        self.to_hand_this_turn=[]
 
         #=================Treasure related functions==============
     def select_treasure(self,lvl):
@@ -191,6 +209,7 @@ class Player:
         treasures = [i for i in self.game.treasures if i.lvl == lvl and i not in self.treasures]
         choices = random.sample(treasures, 3)
         choice = self.input_choose(choices,label='treasure select')
+        #choice = [i for i in self.game.treasures if i.name == 'Sword of Fire and Ice'][0]
         if self.game.verbose_lvl>=2:
             print(self, 'gains', choice)
         assert len(self.treasures)<=3

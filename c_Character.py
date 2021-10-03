@@ -42,7 +42,10 @@ class Character:
         self.effects= []
         for i in self.abils:
             i.add_to_obj(self)
-        self.inshop=inshop
+        if token:
+            self.inshop = False
+        else:
+            self.inshop=inshop
 
     def purchase(self, player):
         if self.game.verbose_lvl>=2:
@@ -62,20 +65,27 @@ class Character:
         token.game = owner.game
         return token
 
-    def add_to_hand(self, player):
-        self.owner = player
-        self.zone = self.owner.hand
-        self.owner.hand.append(self)
-        # add any triggers that are in any of the abilities of the char
-        for i in self.abils:
-            if hasattr(i, 'trigger'):
-                self.owner.triggers.append(i.trigger)
+    def add_to_hand(self, player, store_in_shop=False):
+        if len(player.hand)>=11 and store_in_shop == False:
+            raise "too many objects in owner's hand"
+        elif len(player.hand)>=11 and store_in_shop:
+            player.next_shop.append(self)
+        else:
+            self.owner = player
+            self.zone = self.owner.hand
+            self.owner.hand.append(self)
+            self.owner.to_hand_this_turn.append(self)
+            # add any triggers that are in any of the abilities of the char
+            for i in self.abils:
+                if hasattr(i, 'trigger'):
+                    self.owner.triggers.append(i.trigger)
 
-            if isinstance(i, Player_Effect):
-                i.apply_effect(source=i.source)
-
+                if isinstance(i, Player_Effect):
+                    i.apply_effect(source=i.source)
 
     def permanent_transform(self, trans_char):
+        if trans_char.inshop:
+            self.game.char_pool.remove(trans_char)
         trans_char.add_to_hand(self.owner)
         trans_char.game = self.game
         if self.game.verbose_lvl>=3:
@@ -104,9 +114,67 @@ class Character:
             if hasattr(i, 'trigger') and i.trigger.battle_trigger:
                 self.owner.battle_triggers.append(i.trigger)
 
+            if isinstance(i, Global_Static_Effect):
+                self.owner.effects.append(i)
             # if isinstance(i, Player_Effect):
             #     self.owner.effects.append(i)
 
+    # function to remove a character from the board (but not from a player's control)
+    def remove_from_board(self, death=False):
+
+        # position may be none if the unit's been removed from the owner's control
+        # as part of the death ability (e.g. Polywoggle slaying)
+        if self.position != None:
+            self.owner.board[self.position] = None
+
+        # remove effects from being on field
+        for i in self.abils:
+            # remove support effects
+            if isinstance(i, Support_Effect):
+                def _remove_support_effect(supported):
+                    if supported!=None:
+                        effect = [j for j in supported.eob_reverse_effects if j==i]
+                        if effect != []:
+                            effect[0].reverse_effect(supported)
+                            supported.eob_reverse_effects.remove(effect[0])
+
+                if self.position == 5:
+                    _remove_support_effect(self.owner.board[1])
+                    _remove_support_effect(self.owner.board[2])
+                if self.position == 6:
+                    _remove_support_effect(self.owner.board[2])
+                    _remove_support_effect(self.owner.board[3])
+                if self.position == 7:
+                    _remove_support_effect(self.owner.board[3])
+                    _remove_support_effect(self.owner.board[4])
+
+            # if due to death, apply death effects
+            if death:
+                if isinstance(i, Death_Effect):
+                    i.apply_effect(self)
+
+            if isinstance(i, Global_Static_Effect):
+                print(self)
+                print(self.owner.board)
+                self.owner.effects.remove(i)
+                for char in self.owner.board.values():
+                    if char!=None and i in char.effects:
+                        i.reverse_effect(char)
+                        char.effects.remove(i)
+
+            # remove any triggers unit uses
+            if self.owner != None:
+                if hasattr(i, 'trigger') and i.trigger.battle_trigger:
+                    self.owner.battle_triggers.remove(i.trigger)
+            # some units (e.g. after Polywoggle slays) will not have an owner
+            # at this point in the process. We'll use their last owner for that
+            else:
+                if hasattr(i, 'trigger') and i.trigger.battle_trigger and i.trigger \
+                    in self.last_owner.battle_triggers:
+                    self.last_owner.battle_triggers.remove(i.trigger)
+
+        self.position = None
+        self.damage_taken = 0
 
     def remove_from_hand(self, return_to_pool=True):
         self.owner.hand.remove(self)
@@ -180,6 +248,12 @@ class Character:
             return self.alignment_mod[-1]
 
     def take_damage(self, amt, source, attacking = False):
+
+        # amt is the amount of damage taken
+        # source is the object that's dealing damage
+        # attacking parameter is whether the source is attacking or not
+
+        assert amt > 0, '0 or less damage being dealt'
         self.dmg_taken += amt
         if self.game.verbose_lvl>=3:
             print(self, 'takes',amt,'damage.',self.dmg_taken,'taken total.')
@@ -190,61 +264,24 @@ class Character:
                     if isinstance(abil, Triggered_Effect) and abil.trigger.type=='slay':
                         abil.trigger_effect()
 
+        else:
+            for abil in self.abils:
+                if isinstance(abil, Triggered_Effect) and abil.trigger.type=='survive damage':
+                    abil.trigger_effect()
 
     def dies(self):
+
+        if self.owner!= None and self.owner.first_char_dead == None:
+            self.owner.first_char_dead = self
+        elif self.owner== None and  self.last_owner.first_char_dead == None:
+            self.last_owner.first_char_dead = self
 
         self.remove_from_board(death=True)
 
         if self.game.verbose_lvl>=2:
             print(self, 'dies')
 
-    # function to remove a character from the board (but not from a player's control)
-    def remove_from_board(self, death=False):
 
-        # position may be none if the unit's been removed from the owner's control
-        # as part of the death ability (e.g. Polywoggle slaying)
-        if self.position != None:
-            self.owner.board[self.position] = None
-
-        # remove effects from being on field
-        for i in self.abils:
-            # remove support effects
-            if isinstance(i, Support_Effect):
-                def _remove_support_effect(supported):
-                    if supported!=None:
-                        effect = [j for j in supported.eob_reverse_effects if j==i]
-                        if effect != []:
-                            effect[0].reverse_effect(supported)
-                            supported.eob_reverse_effects.remove(effect[0])
-
-                if self.position == 5:
-                    _remove_support_effect(self.owner.board[1])
-                    _remove_support_effect(self.owner.board[2])
-                if self.position == 6:
-                    _remove_support_effect(self.owner.board[2])
-                    _remove_support_effect(self.owner.board[3])
-                if self.position == 7:
-                    _remove_support_effect(self.owner.board[3])
-                    _remove_support_effect(self.owner.board[4])
-
-            # if due to death, apply death effects
-            if death:
-                if isinstance(i, Death_Effect):
-                    i.apply_effect(self)
-
-            # remove any triggers unit uses
-            if self.owner != None:
-                if hasattr(i, 'trigger') and i.trigger.battle_trigger:
-                    self.owner.battle_triggers.remove(i.trigger)
-            # some units (e.g. after Polywoggle slays) will not have an owner
-            # at this point in the process. We'll use their last owner for that
-            else:
-                if hasattr(i, 'trigger') and i.trigger.battle_trigger and i.trigger \
-                    in self.last_owner.battle_triggers:
-                    self.last_owner.battle_triggers.remove(i.trigger)
-
-        self.position = None
-        self.damage_taken = 0
 
 
     def make_attack(self):
@@ -271,8 +308,17 @@ class Character:
         for mod in self.modifiers:
             if mod.eob:
                 rm_mod.append(mod)
+
+        rm_eff = []
+        for eff in self.effects:
+            if hasattr(eff, 'eob') and eff.eob:
+                rm_eff.append(eff)
+
         for mod in rm_mod:
             self.modifiers.remove(mod)
+
+        for eff in rm_eff:
+            self.effects.remove(eff)
 
         # for when we are not just scrubbing end of battle buffs
         if eob_only==False:
@@ -286,21 +332,23 @@ class Character:
             self.upgraded = False
 
     def add_modifier(self, modifier):
-        modifier.source = self
         self.modifiers.append(modifier)
         if modifier.oth_func!=None:
             modifier.oth_func(self)
 
+    def add_effect(self, eff):
+        eff.source = self
+        self.effects.append(eff)
+
     def remove_modifier(self, modifier):
-        modifier.source = None
         self.modifiers.remove(modifier)
         if modifier.oth_reverse_func!=None:
             modifier.oth_reverse_func(self)
 
-    def increase_atk_mod(self, amt):
+    def change_atk_mod(self, amt):
         self.atk_mod += amt
 
-    def increase_hlth_mod(self, amt):
+    def change_hlth_mod(self, amt):
         self.hlth_mod += amt
 
     def __repr__(self):

@@ -7,13 +7,12 @@ class Effect:
         self.reverse_effect_func = reverse_effect_func
         self.condition = condition
         self.source = None
-        self.source = None
         self.modifier = modifier
-        if modifier != None:
-            self.modifier.source = self.source
 
     def add_to_obj(self, obj):
         self.source = obj
+        if self.modifier!=None:
+            self.modifier.source = obj
 
     def __repr__(self):
         return self.name
@@ -151,7 +150,8 @@ class Shop_Effect(Effect):
 # Effect is added to a player's effect attribute or character's abil attribute,
 # depending on the type of trigger.
 class Triggered_Effect(Effect):
-    def __init__(self, name:str, trigger, effect_func, condition = lambda obj: True, counter = None):
+    def __init__(self, name:str, trigger, effect_func, condition = lambda obj: True,
+        counter = None, eob=False):
         super().__init__(name, effect_func, condition = condition)
         self.trigger = trigger
         self.trigger.source = self
@@ -159,6 +159,7 @@ class Triggered_Effect(Effect):
         self.source = None
         self.condition = condition
         self.counter = counter
+        self.eob = eob
 
     def trigger_effect(self):
         if self.condition(self.source):
@@ -203,6 +204,8 @@ class Modifier:
 class Trigger:
     def __init__(self, name:str, type, condition= lambda x: True, battle_trigger = True):
         self.name = name
+        assert type in ['buy','start of combat','cast','slay','die','attack',
+            'start of turn', 'end of turn', 'survive damage']
         # tentative types: buy, start of combat, cast, slay, die, attack, end of turn
         self.type = type
         self.condition = condition

@@ -28,10 +28,13 @@ class Spell:
 
     def cast(self, owner):
         self.owner = owner
+
         if self.target != None:
             self.target.target_select()
-            if self.owner.game.verbose_lvl>=2:
-                print(self,'targets',self.selected_target)
+            if self.owner.game.verbose_lvl>=3:
+                print(self.owner,'casts',self,'targeting',self.selected_target)
+        elif self.owner.game.verbose_lvl>=3:
+            print(self.owner,'casts',self)
 
         self.owner.check_for_triggers('cast')
 

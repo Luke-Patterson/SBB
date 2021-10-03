@@ -151,11 +151,21 @@ class Game:
         if pA_loss and not pB_loss:
             life_loss_amt = _life_loss_(plyrA, plyrB)
             plyrA.life_loss(life_loss_amt)
-        if pB_loss and not pA_loss:
+            plyrA.last_combat = 'lost'
+            plyrB.last_combat = 'won'
+
+        elif pB_loss and not pA_loss:
             life_loss_amt = _life_loss_(plyrB, plyrA)
             plyrB.life_loss(life_loss_amt)
+            plyrA.last_combat = 'won'
+            plyrB.last_combat = 'lost'
+
+        else:
+            plyrA.last_combat = 'draw'
+            plyrB.last_combat = 'draw'
 
         for p in [plyrA,plyrB]:
+            p.last_opponent = p.opponent
             p.opponent = None
             p.clear_board()
             for char in p.hand:
@@ -177,8 +187,6 @@ class Game:
         sec_plyr = plyrs[0]
         #act_plyr = first_plyr
 
-        for p in plyrs:
-            p.check_for_triggers('start of combat')
 
         plyrA.opponent = plyrB
         plyrB.opponent = plyrA
@@ -189,6 +197,11 @@ class Game:
             print(plyrA,'treasures:',plyrA.treasures)
             print(plyrB,'board:',plyrB.board)
             print(plyrB,'treasures:',plyrB.treasures)
+
+        for p in plyrs:
+            p.check_for_triggers('start of combat')
+
+
         # check to see if combat starts
         if self.check_for_end_of_combat(plyrA,plyrB):
             self.end_combat(plyrA,plyrB)

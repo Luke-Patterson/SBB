@@ -59,13 +59,27 @@ class Character:
         self.add_to_hand(player)
         self.owner.current_gold -= self.current_cost
 
-    def create_token(self, owner):
-        token = deepcopy(self)
-        token.owner = owner
-        token.game = owner.game
-        return token
+    def create_copy(self, owner, plain_copy = False):
+        if self.token:
+            copy = deepcopy(self)
+        else:
+            master_obj = [i for i in owner.game.master_char_list if i.name==self.name][0]
+            copy = deepcopy(master_obj)
+            if plain_copy==False:
+                copy.atk_mod=self.atk_mod
+                copy.hlth_mod=self.hlth_mod
+                copy.upgraded = False
+
+        copy.owner = owner
+        copy.game = owner.game
+        owner.game.assign_id(copy)
+        copy.game.char_universe.append(copy)
+        copy.inshop=False
+
+        return copy
 
     def add_to_hand(self, player, store_in_shop=False):
+        assert self.id != None
         if len(player.hand)>=11 and store_in_shop == False:
             raise "too many objects in owner's hand"
         elif len(player.hand)>=11 and store_in_shop:
@@ -185,10 +199,10 @@ class Character:
                 i.reverse_effect(i.source)
 
         if self.inshop and return_to_pool:
-            self.game.char_pool.append(self)
+            self.game.add_to_char_pool(self)
             if self.upgraded:
                 for i in self.upgrade_copies:
-                    self.game.char_pool.append(i)
+                    self.game.add_to_char_pool(i)
                 self.upgrade_copies = []
         self.scrub_buffs(eob_only=False)
         self.last_owner = self.owner
@@ -341,9 +355,12 @@ class Character:
         self.effects.append(eff)
 
     def remove_modifier(self, modifier):
-        self.modifiers.remove(modifier)
-        if modifier.oth_reverse_func!=None:
-            modifier.oth_reverse_func(self)
+        if modifier in self.modifiers:
+            self.modifiers.remove(modifier)
+            if modifier.oth_reverse_func!=None:
+                modifier.oth_reverse_func(self)
+        elif self.game.verbose_lvl>=4:
+            print('Warning: attempted to remove', modifier, 'but its not in', self,'modifiers')
 
     def change_atk_mod(self, amt):
         self.atk_mod += amt
@@ -353,11 +370,11 @@ class Character:
 
     def __repr__(self):
         printed = self.name
-        if self.id != None and self.game.verbose_lvl>=4:
+        if self.id != None and (self.game==None or self.game.verbose_lvl>=4):
             printed = self.name + '_#' + str(self.id)
-        if self.owner!=None and self.game.verbose_lvl>=3:
+        if self.owner!=None and (self.game==None or self.game.verbose_lvl>=3):
             printed = printed + ' (' + str(self.atk()) + '/' + str(self.hlth()) + ')'
-        elif self.owner==None and self.game.verbose_lvl>=3:
+        elif self.owner==None and (self.game==None or self.game.verbose_lvl>=3):
             printed = printed + ' (' + str(self.base_atk) + '/' + str(self.base_hlth) + ')'
         if self.upgraded:
             printed = printed + ' [gold]'

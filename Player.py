@@ -134,7 +134,7 @@ class Player:
         else:
             for i in self.shop:
                 if isinstance(i, Character):
-                    self.game.char_pool.append(i)
+                    self.game.add_to_char_pool(i)
             self.shop = []
 
     def roll_shop(self, free=False):
@@ -143,7 +143,7 @@ class Player:
             i.scrub_buffs(eob_only=False)
             i.owner = None
             if isinstance(i, Character) and i.inshop:
-                self.game.char_pool.append(i)
+                self.game.add_to_char_pool(i)
 
         self.shop = []
         self.shop = self.game.generate_shop(self)
@@ -375,15 +375,16 @@ class Player:
                 print(self, 'is out of the game')
             self.dead= True
             for i in self.hand.copy():
-                i.owner.game.char_pool.append(i)
+                i.owner.game.add_to_char_pool(i)
 
                 # make a copy in case needed for ghost fight
-                i.owner.hand.append(copy.copy(i))
-                i.owner.hand.remove(i)
+                i.owner.add_to_hand(copy.copy(i))
+                i.owner.remove_from_hand(i)
                 i.scrub_buffs()
                 i.owner = None
             self.game.players.remove(self)
             self.game.ghosts.append(self)
+
     #================= actions requiring player input==============
     # Yes/No input
     def input_bool(self,label=None,obj=None):

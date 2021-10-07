@@ -4,6 +4,7 @@ from Effects import Trigger
 from Effects import Triggered_Effect
 from Effects import Shop_Effect
 from Characters import Character
+from Characters import master_char_list
 from copy import deepcopy
 import random
 
@@ -319,8 +320,7 @@ Healing_Potion = Spell(
 )
 
 def Kidnap_char_effect(source):
-    copy = source.last_opponent.first_char_dead.create_token(source)
-    copy.inshop=False
+    copy = source.last_opponent.first_char_dead.create_copy(source)
     copy.current_cost = 0
     copy.add_to_hand(source, store_in_shop=True)
 

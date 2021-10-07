@@ -46,7 +46,7 @@ Cat_1_1 = Character(
 )
 
 def Black_Cat_Death_Effect(char):
-    token = Cat_1_1.create_token(char.owner)
+    token = Cat_1_1.create_copy(char.owner)
     if char.upgraded:
         token.base_atk = 2
         token.base_hlth = 2
@@ -256,7 +256,8 @@ Frog_Prince = Character(
 )
 
 def Lonely_Prince_Transform_func(char, eff):
-    eff.source.permanent_transform(deepcopy(Frog_Prince))
+    copy = Frog_Prince.create_copy(char.owner)
+    eff.source.permanent_transform(copy)
 
 Lonely_Prince_Transform = Purchase_Effect(
     name='Lonely Prince Purchase Effect',
@@ -551,7 +552,7 @@ Tweedle_Dum = Character(
 )
 
 def Tweedle_Dee_Death_Effect(char):
-    token = Tweedle_Dum.create_token(char.owner)
+    token = Tweedle_Dum.create_copy(char.owner)
     if char.upgraded:
         token.base_atk = 2
         token.base_hlth = 8
@@ -687,7 +688,7 @@ Sheep = Character(
 )
 
 def Sheep_in_Wolfs_Clothing_Death_Effect(char):
-    token = Sheep.create_token(char.owner)
+    token = Sheep.create_copy(char.owner)
     token.base_atk = token.base_atk * (1+ char.upgraded)
     token.base_hlth = token.base_hlth * (1+ char.upgraded)
     char.owner.board[char.position] = token
@@ -849,5 +850,5 @@ objs=deepcopy(list(locals().keys()))
 master_char_list=[]
 for i in objs:
     obj=locals()[i]
-    if isinstance(obj, Character) and obj.token==False and obj.inshop:
+    if isinstance(obj, Character):
         master_char_list.append(obj)

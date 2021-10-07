@@ -46,22 +46,35 @@ class Game:
         # master_hero_list is from Heroes..py
         self.available_heroes= master_hero_list.copy()
 
+    def add_to_char_pool(self, char):
+        if char.id == None:
+            import pdb; pdb.set_trace()
+        self.char_pool.append(char)
+
     def load_char_pool(self):
         # master_char_list is from Characters.py
         self.char_pool=[]
+        self.master_char_list=master_char_list
         for char in master_char_list:
-            if char.lvl==6:
-                for i in range(10):
-                    copy = deepcopy(char)
-                    copy.id = i
-                    copy.game = self
-                    self.char_pool.append(copy)
-            else:
-                for i in range(15):
-                    copy = deepcopy(char)
-                    copy.id = i
-                    copy.game = self
-                    self.char_pool.append(copy)
+            if char.token == False and char.inshop:
+                if char.lvl==6:
+                    for i in range(10):
+                        copy = deepcopy(char)
+                        copy.id = i
+                        copy.game = self
+                        self.add_to_char_pool(copy)
+                else:
+                    for i in range(15):
+                        copy = deepcopy(char)
+                        copy.id = i
+                        copy.game = self
+                        self.add_to_char_pool(copy)
+        self.char_universe=self.char_pool
+
+    def assign_id(self, char):
+        id_num = len([i for i in self.char_universe if i.name==char.name]) + 1
+        char.id = id_num
+
 
     def load_treasures(self):
         # master_treasure_list is from Treasures.py

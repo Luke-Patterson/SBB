@@ -5,6 +5,7 @@ from Heroes import *
 from Player import *
 from Spells import *
 from copy import deepcopy
+from copy import copy
 import itertools
 import random
 
@@ -47,9 +48,9 @@ class Game:
         self.available_heroes= master_hero_list.copy()
 
     def add_to_char_pool(self, char):
-        if char.id == None:
-            import pdb; pdb.set_trace()
+        char.zone = 'pool'
         self.char_pool.append(char)
+
 
     def load_char_pool(self):
         # master_char_list is from Characters.py
@@ -59,17 +60,19 @@ class Game:
             if char.token == False and char.inshop:
                 if char.lvl==6:
                     for i in range(10):
-                        copy = deepcopy(char)
-                        copy.id = i
-                        copy.game = self
-                        self.add_to_char_pool(copy)
+                        copy_char = deepcopy(char)
+                        copy_char.id = i
+                        copy_char.game = self
+                        copy_char.origin = "game copy"
+                        self.add_to_char_pool(copy_char)
                 else:
                     for i in range(15):
-                        copy = deepcopy(char)
-                        copy.id = i
-                        copy.game = self
-                        self.add_to_char_pool(copy)
-        self.char_universe=self.char_pool
+                        copy_char = deepcopy(char)
+                        copy_char.id = i
+                        copy_char.game = self
+                        copy_char.origin = "game copy"
+                        self.add_to_char_pool(copy_char)
+        self.char_universe=copy(self.char_pool)
 
     def assign_id(self, char):
         id_num = len([i for i in self.char_universe if i.name==char.name]) + 1
@@ -332,7 +335,7 @@ class Game:
             shop_size=5
         elig_pool = [i for i in self.char_pool if i.lvl <= player.lvl]
         for i in elig_pool:
-            i.zone= 'pool'
+            i.zone= 'shop'
         elig_spell_pool = [i for i in self.spells if i.lvl <= player.lvl]
         shop = random.sample(list(elig_pool),shop_size)
         for i in shop:

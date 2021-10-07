@@ -225,7 +225,13 @@ Candy_Rain = Spell(
 
 def Cats_Call_effect(spell):
     pass
-# Cat's Call
+
+Cats_Call = Spell(
+    name="Cat's Call",
+    lvl=3,
+    cost=2,
+    effect = Cats_Call_effect
+)
 
 def Earthquake_dmg_effect(source):
     for i in range(1,5):
@@ -320,9 +326,11 @@ Healing_Potion = Spell(
 )
 
 def Kidnap_char_effect(source):
-    copy = source.last_opponent.first_char_dead.create_copy(source)
+    copy = source.last_opponent.first_char_dead.create_copy(source, 'Kidnap spell effect')
     copy.current_cost = 0
     copy.add_to_hand(source, store_in_shop=True)
+    if source.game.verbose_lvl >=3:
+        print('Kidnap creates', copy,'for',source)
 
 def Kidnap_effect(spell):
     effect=Triggered_Effect(

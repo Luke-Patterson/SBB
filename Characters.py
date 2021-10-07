@@ -36,7 +36,7 @@ Baby_Root = Character(
 )
 
 Cat_1_1 = Character(
-    name = '1/1 Cat',
+    name = 'Cat',
     atk=1,
     hlth=1,
     alignment='Evil',
@@ -46,7 +46,7 @@ Cat_1_1 = Character(
 )
 
 def Black_Cat_Death_Effect(char):
-    token = Cat_1_1.create_copy(char.owner)
+    token = Cat_1_1.create_copy(char.owner, 'Black Cat Death Effect')
     if char.upgraded:
         token.base_atk = 2
         token.base_hlth = 2
@@ -256,7 +256,7 @@ Frog_Prince = Character(
 )
 
 def Lonely_Prince_Transform_func(char, eff):
-    copy = Frog_Prince.create_copy(char.owner)
+    copy = Frog_Prince.create_copy(char.owner, 'Frog Prince Transform Effect')
     eff.source.permanent_transform(copy)
 
 Lonely_Prince_Transform = Purchase_Effect(
@@ -504,6 +504,33 @@ Good_Witch_of_the_North = Character(
 # Lucky
 
 # Princess Peep
+Good_Sheep = Character(
+    name = 'Sheep',
+    atk=1,
+    hlth=1,
+    alignment='Good',
+    lvl=2,
+    type=['Animal'],
+    token = True
+)
+
+def Princess_Peep_Death_Effect(char):
+    char.owner.multi_spawn(Good_Sheep, 3, char.position, char.upgraded)
+
+Princess_Peep = Character(
+    name = 'Princess Peep',
+    atk=1,
+    hlth=1,
+    alignment='Good',
+    lvl=3,
+    type=['Animal'],
+    abils=[
+        Death_Effect(
+            name='Princess Peep Death Effect',
+            effect_func = Princess_Peep_Death_Effect
+        )
+    ]
+)
 
 # Princess Wight
 
@@ -552,7 +579,7 @@ Tweedle_Dum = Character(
 )
 
 def Tweedle_Dee_Death_Effect(char):
-    token = Tweedle_Dum.create_copy(char.owner)
+    token = Tweedle_Dum.create_copy(char.owner, 'Tweedle Dee Death Effect')
     if char.upgraded:
         token.base_atk = 2
         token.base_hlth = 8
@@ -688,7 +715,7 @@ Sheep = Character(
 )
 
 def Sheep_in_Wolfs_Clothing_Death_Effect(char):
-    token = Sheep.create_copy(char.owner)
+    token = Sheep.create_copy(char.owner, 'Sheep in Wolfs Clothing death effect')
     token.base_atk = token.base_atk * (1+ char.upgraded)
     token.base_hlth = token.base_hlth * (1+ char.upgraded)
     char.owner.board[char.position] = token

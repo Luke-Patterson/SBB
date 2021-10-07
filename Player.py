@@ -90,6 +90,7 @@ class Player:
             for eff in self.effects:
                 if isinstance(eff, Shop_Effect):
                     eff.apply_effect(i)
+            i.zone = 'shop'
             self.shop.append(i)
         self.next_shop = []
 
@@ -114,13 +115,9 @@ class Player:
                 if self.game.verbose_lvl>=2:
                     print(self, 'passes')
                 break
-            elif isinstance(selected, Spell)==False and selected.zone!='pool':
+            elif isinstance(selected, Spell)==False and selected.zone!='shop':
                 selected.sell()
             else:
-                # if selected.name=='Cinder-ella' and selected.id==3:
-                #
-                #     print(selected in self.game.char_pool)
-                #     import pdb; pdb.set_trace()
                 selected.purchase(self)
                 self.check_for_upgrades()
                 self.check_effects()
@@ -138,15 +135,16 @@ class Player:
             self.shop = []
 
     def roll_shop(self, free=False):
-
         for i in self.shop:
             i.scrub_buffs(eob_only=False)
             i.owner = None
             if isinstance(i, Character) and i.inshop:
                 self.game.add_to_char_pool(i)
 
+
         self.shop = []
         self.shop = self.game.generate_shop(self)
+
         for eff in self.effects:
             if isinstance(eff, Shop_Effect):
                 for obj in self.shop:
@@ -293,6 +291,7 @@ class Player:
 
     # check to see if any global effects affect anything new
     def check_effects(self):
+        assert all([i.zone == self.hand for i in self.hand])
         for eff in self.effects:
             if isinstance(eff, Global_Static_Effect):
                 for char in self.hand:
@@ -357,6 +356,49 @@ class Player:
     def check_for_empty_board(self):
         return all([i==None for i in self.board.values()])
 
+    # function for spawning multiple tokens
+    def multi_spawn(self, ori_token, num, start_pos, upgraded):
+        position = start_pos
+        for _ in range(num):
+            if position != None:
+                token = ori_token.create_copy(self, ori_token.name+ ' Spawn')
+                if upgraded:
+                    token.base_atk *= 2
+                    token.base_hlth *= 2
+                self.board[position] = token
+                token.position = position
+                # if there are no empty positions, this function will return None and
+                # no further tokens will be spawned
+                position = self.find_next_spawn_position(position)
+
+    # function for finding where to spawn the next token
+    def find_next_spawn_position(self, start_pos):
+        if start_pos == 1:
+            order = [2,3,4,5,6,7]
+        if start_pos == 2:
+            order = [3,4,5,6,7,1]
+        if start_pos == 3:
+            order = [4,5,6,7,1,2]
+        if start_pos == 4:
+            order = [5,6,7,1,2,3]
+        if start_pos == 5:
+            order = [1,2,3,4,6,7]
+        if start_pos == 6:
+            order = [2,3,4,5,7,1]
+        if start_pos == 7:
+            order = [3,4,5,6,1,2]
+
+        # depending on the position that the call started from,
+        # go through the position order and find the first empty space
+        for n in order:
+            if self.board[n] == None:
+                return n
+
+        # if no empty spaces exist, return None
+        assert all([i!=None for i in self.board.values()])
+        return None
+
+
     def life_loss(self, amt):
         self.life -= amt
         if self.game.verbose_lvl>=2:
@@ -375,11 +417,13 @@ class Player:
                 print(self, 'is out of the game')
             self.dead= True
             for i in self.hand.copy():
-                i.owner.game.add_to_char_pool(i)
+                owner = i.owner
+
+                # return to the char pool
+                i.remove_from_hand()
 
                 # make a copy in case needed for ghost fight
-                i.owner.add_to_hand(copy.copy(i))
-                i.owner.remove_from_hand(i)
+                copy.copy(i).add_to_hand(owner)
                 i.scrub_buffs()
                 i.owner = None
             self.game.players.remove(self)

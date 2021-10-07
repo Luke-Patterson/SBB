@@ -46,6 +46,8 @@ class Character:
             self.inshop = False
         else:
             self.inshop=inshop
+        # attribute to track origin of character object
+        self.origin = 'original'
 
     def purchase(self, player):
         if self.game.verbose_lvl>=2:
@@ -57,9 +59,10 @@ class Character:
                 eff.apply_effect(eff, self)
 
         self.add_to_hand(player)
+
         self.owner.current_gold -= self.current_cost
 
-    def create_copy(self, owner, plain_copy = False):
+    def create_copy(self, owner, origin, plain_copy = False):
         if self.token:
             copy = deepcopy(self)
         else:
@@ -71,6 +74,7 @@ class Character:
                 copy.upgraded = False
 
         copy.owner = owner
+        copy.origin = origin
         copy.game = owner.game
         owner.game.assign_id(copy)
         copy.game.char_universe.append(copy)
@@ -78,10 +82,14 @@ class Character:
 
         return copy
 
-    def add_to_hand(self, player, store_in_shop=False):
+    def add_to_hand(self, player, store_in_shop=False, transforming = False):
         assert self.id != None
-        if len(player.hand)>=11 and store_in_shop == False:
+        if len(player.hand)>=11 and store_in_shop == False and transforming == False:
             raise "too many objects in owner's hand"
+        # when transforming, it's ok to have one too many objects as one will
+        elif len(player.hand)>=12 and store_in_shop == False and transforming:
+            raise "too many objects in owner's hand"
+        # go away after this function is finished
         elif len(player.hand)>=11 and store_in_shop:
             player.next_shop.append(self)
         else:
@@ -100,7 +108,7 @@ class Character:
     def permanent_transform(self, trans_char):
         if trans_char.inshop:
             self.game.char_pool.remove(trans_char)
-        trans_char.add_to_hand(self.owner)
+        trans_char.add_to_hand(self.owner, transforming = True)
         trans_char.game = self.game
         if self.game.verbose_lvl>=3:
             print(self, 'transforms into', trans_char)
@@ -114,7 +122,6 @@ class Character:
             trans_char.upgraded = True
         trans_char.atk_mod = self.atk_mod
         trans_char.hlth_mod = self.hlth_mod
-
         self.remove_from_hand()
 
     def add_to_board(self, plyr, position):
@@ -168,13 +175,13 @@ class Character:
                     i.apply_effect(self)
 
             if isinstance(i, Global_Static_Effect):
-                print(self)
-                print(self.owner.board)
                 self.owner.effects.remove(i)
                 for char in self.owner.board.values():
                     if char!=None and i in char.effects:
                         i.reverse_effect(char)
                         char.effects.remove(i)
+                # print(self)
+                # print(self.owner.board)
 
             # remove any triggers unit uses
             if self.owner != None:

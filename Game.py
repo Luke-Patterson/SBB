@@ -183,10 +183,14 @@ class Game:
         for p in [plyrA,plyrB]:
             p.last_opponent = p.opponent
             p.opponent = None
+            p.check_for_triggers('end of combat')
             p.clear_board()
             for char in p.hand:
                 char.dmg_taken=0
                 char.position=None
+                char.last_position = None
+                char.eob_atk_mod=0
+                char.eob_hlth_mod=0
 
     def conduct_combat(self, plyrA, plyrB):
 
@@ -327,6 +331,8 @@ class Game:
 
     # functions for players to call generate a shop
     def generate_shop(self, player):
+        # reminder: Masquerade Ball has a lot of similar code, modifications
+        # here may need to be carried over there
         if self.turn_counter <= 2:
             shop_size=3
         elif self.turn_counter > 2 and self.turn_counter <= 5:
@@ -334,13 +340,36 @@ class Game:
         else:
             shop_size=5
         elig_pool = [i for i in self.char_pool if i.lvl <= player.lvl]
-        for i in elig_pool:
-            i.zone= 'shop'
         elig_spell_pool = [i for i in self.spells if i.lvl <= player.lvl]
         shop = random.sample(list(elig_pool),shop_size)
         for i in shop:
             self.char_pool.remove(i)
             i.owner = player
-        shop = shop + random.sample(list(elig_spell_pool),1)
-        assert len([i for i in shop if isinstance(i, Spell)])<=1
+            i.zone= 'shop'
+        if player.check_spells_in_shop():
+            shop = shop + random.sample(list(elig_spell_pool),1)
+            assert len([i for i in shop if isinstance(i, Spell)])<=1
         return(shop)
+
+    def generate_partial_shop(self, player):
+        # reminder: Masquerade Ball has a lot of similar code, modifications
+        # here may need to be carried over there
+        if self.turn_counter <= 2:
+            shop_size=3
+        elif self.turn_counter > 2 and self.turn_counter <= 5:
+            shop_size=4
+        else:
+            shop_size=5
+        elig_pool = [i for i in self.char_pool if i.lvl <= player.lvl]
+        elig_spell_pool = [i for i in self.spells if i.lvl <= player.lvl]
+        addl_char_num = max(0, shop_size - len([i for i in player.shop if isinstance(i, Character)]))
+        addl_shop = random.sample(list(elig_pool),addl_char_num)
+        for i in addl_shop:
+            self.char_pool.remove(i)
+            i.owner = player
+            i.zone= 'shop'
+
+        if all([isinstance(i, Character) for i in player.shop]) and player.check_spells_in_shop():
+            addl_shop = addl_shop + random.sample(list(elig_spell_pool),1)
+
+        return(addl_shop)

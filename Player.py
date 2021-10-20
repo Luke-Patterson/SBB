@@ -27,6 +27,8 @@ class Player:
         self.current_gold=0
         self.next_turn_addl_gold=0
         self.treasures=[]
+        # list of all treasures obtained during a game (can't be obtained again)
+        self.obtained_treasures = []
         self.logic=logic
         self.spell_played_this_turn = False
         self.opponent = None
@@ -38,10 +40,14 @@ class Player:
         self.battle_triggers=[]
         # effects specific to a battle
         self.battle_effects=[]
-        # track the first char to die
-        self.first_char_dead = None
+        # track the dead chars
+        self.chars_dead = []
         # track what is going into the next shop
         self.next_shop = []
+        # track whether to spawn spells in the shop
+        self.spells_in_shop = [True]
+        # track last combat results
+        self.last_combat = 'draw'
 
     def choose_hero(self, choices):
         # force a hero for testing
@@ -59,7 +65,15 @@ class Player:
     #================= turn order functions==============
 
     def start_of_turn_effects(self):
+        # reset shop
+        if self.locked_shop==False:
+            self.roll_shop(free=True)
+        else:
+            self.roll_partial_shop()
+
         self.check_for_triggers('start of turn')
+
+        # reset gold
         if any([i.name=='Piggie Bank' for i in self.treasures]):
             self.current_gold = self.current_gold + self.start_turn_gold + self.next_turn_addl_gold
         else:
@@ -68,11 +82,9 @@ class Player:
         # reset turn-specific trackers
         self.next_turn_addl_gold = 0
         self.spell_played_this_turn = False
-        self.first_char_dead = None
+        self.chars_dead = []
 
     def do_shop_phase(self):
-        if self.locked_shop==False:
-            self.roll_shop(free=True)
 
         # obsolete code, chunking it out into choices for individual actions, as too many actions are not independent
         # # get all possible combinations of actions one could do at current shop
@@ -107,7 +119,9 @@ class Player:
             if self.logic!=None or len(self.hand)==11:
                 options = options + sell_options
             selected = self.input_choose(options)
-
+            for i in options:
+                if hasattr(i,'name') and i.name == "Cat's Call":
+                    selected = i
             # TODO: add selling as a legal option
             if selected=='roll':
                 self.roll_shop()
@@ -129,12 +143,15 @@ class Player:
             if self.game.verbose_lvl>=2:
                 print(self, 'locks the shop')
         else:
+            self.locked_shop = False
             for i in self.shop:
                 if isinstance(i, Character):
                     self.game.add_to_char_pool(i)
             self.shop = []
 
     def roll_shop(self, free=False):
+        # reminder: Masquerade Ball, Drink me potion has a lot of similar code, modifications
+        # here may need to be carried over there
         for i in self.shop:
             i.scrub_buffs(eob_only=False)
             i.owner = None
@@ -152,8 +169,20 @@ class Player:
 
         if free==False:
             self.current_gold -=1
+
         if self.game.verbose_lvl >=2:
             print(self, 'rolls shop')
+
+    def roll_partial_shop(self):
+        addl_shop = self.game.generate_partial_shop(self)
+        for eff in self.effects:
+            if isinstance(eff, Shop_Effect):
+                for obj in addl_shop:
+                    eff.apply_effect(obj)
+        self.shop = self.shop + addl_shop
+
+        if self.game.verbose_lvl >=2:
+            print(self, 'rolls partial shop')
 
     # deploy characters from hand to field
     def deploy_for_battle(self):
@@ -185,12 +214,21 @@ class Player:
         self.check_effects()
 
     def end_of_turn_effects(self):
+        # code to force a treasure to be discarded for testing purposes
+        # if any([i.name=="Fool's Gold" for i in self.treasures]):
+        #     self.discard_treasure([i for i in self.treasures if i.name == "Fool's Gold"][0])
+        #     import pdb; pdb.set_trace()
+
         self.gain_exp()
         self.check_for_triggers('end of turn')
 
         # remove all EOB modifiers from every character
         for i in self.hand:
             i.scrub_buffs(eob_only=True)
+
+        for i in self.effects:
+            if isinstance(i, Triggered_Effect) and i.eob:
+                i.remove_effect(self)
 
         if self.start_turn_gold<12:
             self.start_turn_gold += 1
@@ -204,7 +242,8 @@ class Player:
         if lvl > 7:
             lvl = 7
 
-        treasures = [i for i in self.game.treasures if i.lvl == lvl and i not in self.treasures]
+        treasures = [i for i in self.game.treasures if i.lvl == lvl and i not in
+            self.treasures and i not in self.obtained_treasures]
         choices = random.sample(treasures, 3)
         choice = self.input_choose(choices,label='treasure select')
         #choice = [i for i in self.game.treasures if i.name == 'Sword of Fire and Ice'][0]
@@ -216,37 +255,55 @@ class Player:
             if self.game.verbose_lvl>=2:
                 print(self, 'discards', remove_choice)
             self.discard_treasure(remove_choice)
+
+        # code to force a treasure to be taken for testing purposes
+        # if lvl == 2 and all([i.name!="Fool's Gold" for i in self.treasures]):
+        #     choice = [i for i in self.game.treasures if i.name == "Fool's Gold"][0]
         self.gain_treasure(choice)
 
     def gain_treasure(self, treasure):
         treasure_copy = treasure.create_copy()
         self.treasures.append(treasure_copy)
+        self.obtained_treasures.append(treasure)
         treasure_copy.owner = self
         if treasure_copy.abils!=None:
             for abil in treasure_copy.abils:
-                if isinstance(abil, Effect):
-                    self.effects.append(abil)
                 if hasattr(abil, 'trigger'):
                     self.triggers.append(abil.trigger)
+                if isinstance(abil, Player_Effect):
+                    abil.apply_effect(abil.source)
+                elif isinstance(abil, Effect):
+                    self.effects.append(abil)
 
     def discard_treasure(self, treasure):
         assert treasure.owner == self
-        self.treasures.remove(treasure)
-        treasure.owner = None
         if treasure.abils!=None:
             for abil in treasure.abils:
-                if isinstance(abil, Global_Static_Effect):
+                if isinstance(abil, Player_Effect):
+                    abil.reverse_effect(abil.source)
+                elif isinstance(abil, Global_Static_Effect):
                     self.remove_effect(abil)
                 if hasattr(abil, 'trigger'):
                     self.triggers.remove(abil.trigger)
+
+        self.treasures.remove(treasure)
+        treasure.owner = None
 
     def check_for_upgrades(self):
         name_counts = pd.Series([i.name for i in self.hand if i.upgraded==False]).value_counts()
         for name in name_counts.loc[name_counts>=3].index:
             if self.game.verbose_lvl>=2:
                 print(self,'upgrades',name)
-            copies = [i for i in self.hand if i.name==name]
+            copies = [i for i in self.hand if i.name==name][0:3]
             keep_copy = random.choice(copies)
+            # if any of the copies have a different alignment than the base alignment
+            # the upgraded copy will have that different alignment
+            diff_align_copies = [i for i in copies if i.get_alignment() != i.alignment]
+            for i in diff_align_copies:
+                diff_align = i.get_alignment()
+                keep_copy.alignment_mod.append(diff_align)
+
+            # move the rest of the copies into limbo (not in hand, but not in pool)
             limbo_copies = copies.copy()
             limbo_copies.remove(keep_copy)
             for i in limbo_copies:
@@ -272,12 +329,41 @@ class Player:
     #================= misc utility functions==============
 
 
-    def check_for_triggers(self, type):
+    def check_for_triggers(self, type, triggering_obj=None, triggered_obj = None, effect_kwargs = None):
+        '''
+        Function to check player's trigger attribute for any appropriate triggers
+        params:
+        type - string, type of trigger being checked for
+        triggering_obj - if appropriate, the object that caused the trigger. If present,
+        check to make sure the object also meets the trigger's condition
+        triggered_obj - if appropriate, the object that had the trigger applied
+        to it. This is currently only for slay trigger when a creature is slain
+        '''
+
         for i in self.triggers:
-            if i.type == type:
-                if self.game.verbose_lvl>=4:
-                    print('triggering',i)
-                i.source.trigger_effect()
+            # if object present, check to ensure the condition is met
+            if triggering_obj != None:
+                condition_obj = triggering_obj
+            # if it's none, check the condition for the source of the trigger
+            else:
+                condition_obj = i.source
+            # if i.type == type and type == 'target':
+            #     import pdb; pdb.set_trace()
+            if type == 'global slay':
+                if i.type == type and i.condition(i, condition_obj, triggered_obj):
+                    if self.game.verbose_lvl>=4:
+                        print('triggering',i)
+                    i.source.trigger_effect(effect_kwargs)
+            elif type == 'die':
+                if i.type == type and i.condition(i, condition_obj):
+                    if self.game.verbose_lvl>=4:
+                        print('triggering',i)
+                    i.source.trigger_effect(effect_kwargs)
+            else:
+                if i.type == type and i.condition(i, condition_obj):
+                    if self.game.verbose_lvl>=4:
+                        print('triggering',i)
+                    i.source.trigger_effect()
 
         # for i in p.hand:
         #     for abil in i.abils:
@@ -376,17 +462,17 @@ class Player:
         if start_pos == 1:
             order = [2,3,4,5,6,7]
         if start_pos == 2:
-            order = [3,4,5,6,7,1]
+            order = [3,1,4,5,6,7]
         if start_pos == 3:
-            order = [4,5,6,7,1,2]
+            order = [4,2,1,6,7,5]
         if start_pos == 4:
-            order = [5,6,7,1,2,3]
+            order = [3,2,1,7,6,5]
         if start_pos == 5:
-            order = [1,2,3,4,6,7]
+            order = [6,7,1,2,3,4]
         if start_pos == 6:
-            order = [2,3,4,5,7,1]
+            order = [5,7,2,3,4,1]
         if start_pos == 7:
-            order = [3,4,5,6,1,2]
+            order = [5,6,4,3,2,1]
 
         # depending on the position that the call started from,
         # go through the position order and find the first empty space
@@ -419,15 +505,19 @@ class Player:
             for i in self.hand.copy():
                 owner = i.owner
 
-                # return to the char pool
+                # return a copy to the char pool
                 i.remove_from_hand()
 
                 # make a copy in case needed for ghost fight
-                copy.copy(i).add_to_hand(owner)
+                char_copy = i.create_copy(owner, 'Ghost Copy')
+                char_copy.add_to_hand(owner)
                 i.scrub_buffs()
                 i.owner = None
             self.game.players.remove(self)
             self.game.ghosts.append(self)
+
+    def check_spells_in_shop(self):
+        return all(self.spells_in_shop)
 
     #================= actions requiring player input==============
     # Yes/No input

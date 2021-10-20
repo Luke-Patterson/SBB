@@ -4,7 +4,49 @@ from copy import deepcopy
 import random
 
 # Book of Heroes
+def Book_of_Heroes_triggered_effect(source, slain, slayer):
+    slayer.change_atk_mod(1)
+    slayer.change_hlth_mod(1)
+
+Book_of_Heroes = Treasure(
+    name = 'Book of Heroes',
+    lvl = 2,
+    abils = [
+        Triggered_Effect(
+            name = 'Book of Heroes Global Slay Effect',
+            effect_func = Book_of_Heroes_triggered_effect,
+            trigger = Trigger(
+                name='Book of Heroes Global Slay Effect trigger',
+                type='global slay',
+                condition = lambda self, condition_obj, triggered_obj:
+                    condition_obj.get_alignment() == 'Good' and
+                    triggered_obj.get_alignment() == 'Evil'
+            )
+        )
+    ]
+)
+
 # Bounty Board
+def Bounty_Board_triggered_effect(source, slain, slayer):
+    slayer.owner.next_turn_addl_gold += 1
+
+Bounty_Board = Treasure(
+    name = 'Bounty Board',
+    lvl=2,
+    abils = [
+        Triggered_Effect(
+            name = 'Bounty Board Global Slay Effect',
+            effect_func = Bounty_Board_triggered_effect,
+            trigger = Trigger(
+                name='Bounty Board Global Slay Effect trigger',
+                type='global slay',
+                condition = lambda self, condition_obj, triggered_obj:
+                    any([i.trigger.type == 'slay' for i in condition_obj.abils
+                    if isinstance(i, Triggered_Effect)])
+            )
+        )
+    ]
+)
 
 #Corrupted Heartwood
 Corrupted_Heartwood_Modifier = Modifier(
@@ -207,6 +249,34 @@ Monster_Manual = Treasure(
 )
 
 #Needle Nose Daggers
+Needle_Nose_Daggers_Modifier = Modifier(
+    name= 'Needle Nose Daggers Modifier',
+    atk_func = lambda char, atk, source: atk + 1
+)
+
+def Needle_Nose_Daggers_trigger_effect(source):
+    if source.owner.last_combat == 'lost':
+        source.owner.discard_treasure(source)
+
+Needle_Nose_Daggers = Treasure(
+    name='Needle Nose Daggers',
+    lvl=2,
+    abils=[
+        Global_Static_Effect(
+            name = 'Needle Nose Daggers Effect',
+            effect_func = lambda self: self.add_modifier(Needle_Nose_Daggers_Modifier),
+            reverse_effect_func = lambda self: self.remove_modifier(Needle_Nose_Daggers_Modifier)
+        ),
+        Triggered_Effect(
+            name = 'Needle Nose Daggers destroy effect',
+            effect_func = Needle_Nose_Daggers_trigger_effect,
+            trigger = Trigger(
+                name = 'Needle Nose Daggers trigger',
+                type = 'end of combat'
+            )
+        )
+    ]
+)
 
 Piggie_Bank = Treasure(
     name='Piggie Bank',
@@ -216,7 +286,29 @@ Piggie_Bank = Treasure(
 )
 
 #Ring of Meteors
+def Ring_of_Meteors_dmg_effect(source):
+    for i in source.owner.board.values():
+        if i != None:
+            i.take_damage(1, source=source)
 
+    for i in source.owner.opponent.board.values():
+        if i != None:
+            i.take_damage(1, source=source)
+
+Ring_of_Meteors = Treasure(
+    name = 'Ring of Meteors',
+    lvl=2,
+    abils = [
+        Triggered_Effect(
+            name = 'Ring of Meteors triggered effect',
+            effect_func = Ring_of_Meteors_dmg_effect,
+            trigger = Trigger(
+                name='Ring of Meteors Effect trigger',
+                type='start of combat'
+            )
+        )
+    ]
+)
 
 #Ring of Regeneration
 Ring_of_Regeneration = Treasure(
@@ -235,7 +327,28 @@ Ring_of_Regeneration = Treasure(
 )
 
 # Rune Stones
+
 # Secret Stash
+def Secret_Stash_trigger_effect(source):
+    if source.owner.last_combat == 'lost':
+        source.owner.next_turn_addl_gold += 3
+        source.owner.life_gain(3)
+        source.owner.discard_treasure(source)
+
+Secret_Stash = Treasure(
+    name = 'Secret Stash',
+    lvl=2,
+    abils = [
+        Triggered_Effect(
+            name = 'Secret Stash destroy effect',
+            effect_func = Secret_Stash_trigger_effect,
+            trigger = Trigger(
+                name = 'Secret Stash trigger',
+                type = 'end of combat'
+            )
+        )
+    ]
+)
 
 #Shepherd's Sling
 
@@ -284,10 +397,24 @@ Ancient_Sarcophagus= Treasure(
     abils=None
 )
 
+def Bad_Moon_triggered_effect(source, slain, slayer):
+    slayer.change_atk_mod(1)
+    slayer.change_hlth_mod(2)
+
 Bad_Moon= Treasure(
     name='Bad Moon',
     lvl=3,
-    abils=None
+    abils=[Triggered_Effect(
+        name = 'Bad Moon Global Slay Effect',
+        effect_func = Bad_Moon_triggered_effect,
+        trigger = Trigger(
+            name='Bad Moon Global Slay Effect trigger',
+            type='global slay',
+            condition = lambda self, condition_obj, triggered_obj:
+                any([i.trigger.type == 'slay' for i in condition_obj.abils
+                if isinstance(i, Triggered_Effect)])
+        )
+    )]
 )
 
 Cloak_of_the_Assassin_Modifier = Modifier(
@@ -402,6 +529,36 @@ Power_Orb = Treasure(
 )
 
 # Ring of Revenge
+def Ring_of_Revenge_triggered_effect(source, dead_char):
+    pos_map = {1:[5],2:[5,6],3:[6,7],4:[7]}
+    if dead_char.position == None:
+        position = dead_char.last_position
+    else:
+        position = dead_char.position
+    assert position != None
+    if position in pos_map.keys():
+        pump_pos = pos_map[position]
+        for i in pump_pos:
+            if source.owner.board[i] != None:
+                source.owner.board[i].change_eob_atk_mod(1)
+                source.owner.board[i].change_eob_hlth_mod(1)
+                if dead_char.game.verbose_lvl>=4:
+                    print(source.owner.board[i],'pumped by', source)
+
+Ring_of_Revenge = Treasure(
+    name = 'Ring of Revenge',
+    lvl=3,
+    abils = [
+        Triggered_Effect(
+            name = 'Ring of Revenge Death Effect',
+            effect_func = Ring_of_Revenge_triggered_effect,
+            trigger = Trigger(
+                name='Ring of Revenge Death Effect trigger',
+                type='die'
+            )
+        )
+    ]
+)
 
 # Sting
 Sting_Modifier = Modifier(
@@ -443,16 +600,48 @@ Tell_Tale_Quiver= Treasure(
     ]
 )
 
+def Coin_of_Charron_triggered_effect(source, dead_char):
+    if len(source.owner.chars_dead) <= 1:
+        dead_char.change_atk_mod(4)
+        dead_char.change_hlth_mod(4)
+
 Coin_of_Charron= Treasure(
     name='Coin of Charron',
     lvl=4,
-    abils=None
+    abils = [
+        Triggered_Effect(
+            name = 'Coin of Charron Death Effect',
+            effect_func = Coin_of_Charron_triggered_effect,
+            trigger = Trigger(
+                name='Coin of Charon Death Effect trigger',
+                type='die'
+            )
+        )
+    ]
 )
+
+def Deck_of_Many_Things_effect(source):
+    Deck_spells = ['Falling Stars','Earthquake', 'Fireball', 'Lightning Bolt', 'Ride of the Valkyries',
+        'Blessing of Athena', 'Poison Apple', 'Shrivel', 'Smite','Pigomorph']
+    elig_spells = [i for i in source.owner.game.spells if i.name in Deck_spells
+        and i.lvl <= source.owner.lvl]
+    if elig_spells != []:
+        selected = random.choice(elig_spells)
+        selected.cast(source.owner, in_combat = True)
 
 Deck_of_Many_Things= Treasure(
     name='Deck of Many Things',
     lvl=4,
-    abils=None
+    abils=[
+        Triggered_Effect(
+            name = "Deck of Many Things triggered ability",
+            trigger = Trigger(
+                name= "Deck of Many Things trigger",
+                type= "start of combat"
+            ),
+            effect_func = Deck_of_Many_Things_effect
+        )
+    ]
 )
 
 Dwarven_Forge= Treasure(
@@ -461,10 +650,34 @@ Dwarven_Forge= Treasure(
     abils=None
 )
 
+def Fools_Gold_effect(source):
+    source.owner.next_turn_addl_gold += 4
+
+def Fools_Gold_spell_effect(eff, player):
+    player.spells_in_shop.append(False)
+
+def Fools_Gold_spell_reverse_effect(eff, player):
+    player.spells_in_shop.remove(False)
+    import pdb; pdb.set_trace()
+
 Fools_Gold= Treasure(
     name="Fool's Gold",
     lvl=4,
-    abils=None
+    abils=[
+        Triggered_Effect(
+            name = "Fool's Gold triggered ability",
+            trigger = Trigger(
+                name= "Fool's Gold trigger",
+                type= "start of turn"
+            ),
+            effect_func = Fools_Gold_effect
+        ),
+        Player_Effect(
+            name='Fools Gold Spell Effect',
+            effect_func= Fools_Gold_spell_effect,
+            reverse_effect_func = Fools_Gold_spell_reverse_effect
+        )
+    ]
 )
 
 Forking_Rod= Treasure(

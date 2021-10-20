@@ -45,13 +45,12 @@ Cat_1_1 = Character(
     token = True
 )
 
-def Black_Cat_Death_Effect(char):
+def Black_Cat_Last_Breath_Effect(char):
     token = Cat_1_1.create_copy(char.owner, 'Black Cat Death Effect')
     if char.upgraded:
         token.base_atk = 2
         token.base_hlth = 2
-    char.owner.board[char.position] = token
-    token.position = char.position
+    token.add_to_board(plyr = char.owner, position = char.position)
 
 Black_Cat = Character(
     name = 'Black Cat',
@@ -61,9 +60,9 @@ Black_Cat = Character(
     lvl=2,
     type=['Animal'],
     abils=[
-        Death_Effect(
+        Last_Breath_Effect(
             name='Black Cat Death Effect',
-            effect_func = Black_Cat_Death_Effect
+            effect_func = Black_Cat_Last_Breath_Effect
         )
     ]
 )
@@ -183,8 +182,9 @@ Happy_Little_Tree= Character(
     ]
 )
 
-def Humpty_Dumpty_death_effect(self):
-    self.remove_from_hand()
+def Humpty_Dumpty_Last_Breath_Effect(self):
+    if self.token == False:
+        self.remove_from_hand()
 
 Humpty_Dumpty = Character(
     name='Humpty Dumpty',
@@ -194,9 +194,9 @@ Humpty_Dumpty = Character(
     lvl=2,
     type=['Egg'],
     abils = [
-        Death_Effect(
+        Last_Breath_Effect(
             name = 'Humpty Dumpty',
-            effect_func = Humpty_Dumpty_death_effect
+            effect_func = Humpty_Dumpty_Last_Breath_Effect
         )
     ]
 )
@@ -445,18 +445,8 @@ Brave_Princess = Character(
     ]
 )
 
-# Darkwood_Creeper_trig_effect = Triggered_Effect(
-#     name='Darkwood Creeper triggered effect',
-#     trigger= Trigger(
-#         name='Darkwood Creeper trigger',
-#         type='survive damage'
-#     ),
-#     effect_func= lambda source: source.change_atk_mod(1)
-# )
+# def Darkwood_Creeper_effect(source):
 #
-# def Darkwood_Creeper_effect(char):
-#
-# Darkwood_Creeper_reverse_effect
 #
 # # Darkwood Creeper
 # Darkwood_Creeper = Creature(
@@ -467,9 +457,13 @@ Brave_Princess = Character(
 #     lvl=3,
 #     type=['Treant'],
 #     abils=[
-#         Global_Static_Effect(
-#             name='Darkwood Creeper effect',
-#             effect_func =
+#         Triggered_Effect(
+#             name = 'Trojan Donkey survive effect',
+#             effect_func = Darkwood_Creeper_effect,
+#             trigger = Trigger(
+#                 name = 'Darkwood Creeper survive effect trigger',
+#                 type = 'survive damage'
+#             )
 #         )
 #     ]
 # )
@@ -502,7 +496,51 @@ Good_Witch_of_the_North = Character(
 )
 
 # Lucky
+def Lucky_triggered_effect(source):
+    selected = random.choice([i for i in source.shop if isinstance(i,Character)])
+    selected.current_cost = max(0, selected.current_cost - 2)
 
+def Lucky_upgr_triggered_effect(source):
+    selected = random.choice([i for i in source.shop if isinstance(i,Character)])
+    selected.current_cost = max(0, selected.current_cost - 4)
+
+
+def Lucky_effect(char):
+    if char.upgraded:
+        effect = Triggered_Effect(
+            name = 'Lucky Triggered Effect',
+            effect_func = Lucky_upgr_triggered_effect,
+            trigger = Trigger(
+                name='Lucky Effect trigger',
+                type='start of turn'
+            ),
+            eob = True
+        )
+    else:
+        effect = Triggered_Effect(
+            name = 'Lucky Triggered Effect',
+            effect_func = Lucky_triggered_effect,
+            trigger = Trigger(
+                name='Lucky Effect trigger',
+                type='start of turn'
+            ),
+            eob = True
+        )
+    effect.apply_effect(char.owner)
+
+Lucky = Character(
+    name = 'Lucky',
+    atk=3,
+    hlth=2,
+    lvl=3,
+    type=['Dwarf'],
+    abils = [
+        Last_Breath_Effect(
+            name = 'Lucky Death Effect',
+            effect_func = Lucky_effect
+        )
+    ]
+)
 # Princess Peep
 Good_Sheep = Character(
     name = 'Sheep',
@@ -514,7 +552,7 @@ Good_Sheep = Character(
     token = True
 )
 
-def Princess_Peep_Death_Effect(char):
+def Princess_Peep_Last_Breath_Effect(char):
     char.owner.multi_spawn(Good_Sheep, 3, char.position, char.upgraded)
 
 Princess_Peep = Character(
@@ -525,24 +563,222 @@ Princess_Peep = Character(
     lvl=3,
     type=['Animal'],
     abils=[
-        Death_Effect(
+        Last_Breath_Effect(
             name='Princess Peep Death Effect',
-            effect_func = Princess_Peep_Death_Effect
+            effect_func = Princess_Peep_Last_Breath_Effect
         )
     ]
 )
 
+def Princess_Wight_triggered_effect(source, dead_char):
+    source.change_atk_mod(1 * (1 + source.upgraded))
+    source.change_hlth_mod(1 * (1 + source.upgraded))
+
 # Princess Wight
+Princess_Wight = Character(
+    name = 'Princess Wight',
+    atk=1,
+    hlth=3,
+    alignment='Evil',
+    lvl=3,
+    type=['Princess'],
+    abils = [
+        Triggered_Effect(
+            name = 'Princess Wight Dwarf Death Effect',
+            effect_func = Princess_Wight_triggered_effect,
+            trigger = Trigger(
+                name='Princess Wight Dwarf Death Effect trigger',
+                type='die',
+                condition = lambda self, char: 'Dwarf' in char.type
+            )
+        ),
+        Quest(
+            name= 'Princess Wight Quest',
+            trigger = Trigger(
+                name='Princess Wight Quest Trigger',
+                type='purchase',
+                condition = lambda self, char: 'Dwarf' in char.type
+            ),
+            counter = 7
+        )
+    ]
+)
 
 # Prized Pig
+def Prized_Pig_Last_Breath_Effect(char):
+    char.owner.opponent.next_turn_addl_gold += 1 * (1 + char.upgraded)
+
+def Prized_Pig_end_of_combat_effect(source):
+    source.owner.next_turn_addl_gold += 2 * (1+ source.upgraded)
+
+def Prized_Pig_end_of_combat_condition(self, source):
+    return source.source.position != None and source.source in source.source.owner.board.values()
+
+Prized_Pig = Character(
+    name = 'Prized Pig',
+    atk=3,
+    hlth=6,
+    lvl=3,
+    type=['Animal'],
+    abils = [
+        Last_Breath_Effect(
+            name = 'Prized Pig Last Breath Effect',
+            effect_func = Prized_Pig_Last_Breath_Effect
+        ),
+        Triggered_Effect(
+            name = 'Prized Pig End of Combat effect',
+            effect_func = Prized_Pig_end_of_combat_effect,
+            trigger = Trigger(
+                name = 'Prized Pig End of Combat trigger',
+                type = 'end of combat',
+                condition = Prized_Pig_end_of_combat_condition
+            )
+        )
+    ]
+)
+
+def Queen_of_Hearts_triggered_effect(source, dead_char):
+    source.change_eob_atk_mod(2 * (1 + source.upgraded))
+    source.change_eob_hlth_mod(2 * (1 + source.upgraded))
 
 # Queen of Hearts
+Queen_of_Hearts = Character(
+    name = 'Queen of Hearts',
+    atk=1,
+    hlth=3,
+    alignment='Evil',
+    lvl=3,
+    type=['Queen'],
+    abils = [
+        Triggered_Effect(
+            name = 'Queen of Hearts Death Effect',
+            effect_func = Queen_of_Hearts_triggered_effect,
+            trigger = Trigger(
+                name='Queen of Hearts Death Effect trigger',
+                type='die',
+                condition = lambda self, char: char.get_alignment() == 'Evil'
+            )
+        )
+    ]
+)
 
 # Romeo
+def Romeo_effect(char):
+    Juliets = [i for i in char.owner.chars_dead if i.name == 'Juliet']
+    upgr_Juliets = [i for i in Juliets if i.upgraded]
+    if upgr_Juliets != []:
+        selected = upgr_Juliets[0]
+    elif Juliets != []:
+        selected = Juliets[0]
+    else:
+        return
+
+    copy = selected.create_copy(char.owner, 'Romeo summon')
+    # making the copy a token so it won't end up on the chars_dead list
+    copy.token = True
+    copy.atk_mod += 7 * (1+ char.upgraded)
+    copy.hlth_mod += 7 * (1+ char.upgraded)
+    copy.add_to_board(char.owner, char.position)
+
+Romeo = Character(
+    name = 'Romeo',
+    lvl=3,
+    alignment='Good',
+    atk=5,
+    hlth=3,
+    type=['Prince'],
+    abils = [
+        Last_Breath_Effect(
+            name = 'Romeo Death Effect',
+            effect_func = Romeo_effect
+        )
+    ]
+)
 
 # Shadow Assassin
+def Shadow_Assassin_triggered_effect(source, slain, slayer):
+    source.change_atk_mod(1 * (1 + source.upgraded))
+
+Shadow_Assassin = Character(
+    name = 'Shadow Assassin',
+    lvl=3,
+    alignment='Evil',
+    atk=2,
+    hlth=1,
+    keyword_abils=['ranged'],
+    type=['Monster'],
+    abils = [
+        Triggered_Effect(
+            name = 'Shadow Assassin Global Slay Effect',
+            effect_func = Shadow_Assassin_triggered_effect,
+            trigger = Trigger(
+                name='Shadow Assassin Global Slay Effect trigger',
+                type='global slay',
+                condition = lambda self, condition_obj, triggered_obj:
+                    any([i.trigger.type == 'slay' for i in condition_obj.abils
+                    if isinstance(i, Triggered_Effect)])
+            )
+        )
+    ]
+)
 
 # Sleeping Princess
+Awakened_Princess = Character(
+    name = 'Awakened Princess',
+    lvl=3,
+    alignment='Good',
+    atk=8,
+    hlth=8,
+    type=['Princess'],
+    inshop=False
+)
+
+def Sleeping_Princess_Transform_func(char):
+    copy = Awakened_Princess.create_copy(char.owner, 'Sleeping Princess Transform Effect')
+    char.permanent_transform(copy)
+
+def Sleeping_Princess_Transform_condition (self, char):
+    return self.source.source == char
+
+Sleeping_Princess_Transform = Triggered_Effect(
+    name='Sleeping Princess Target Effect',
+    effect_func = Sleeping_Princess_Transform_func,
+    trigger = Trigger(
+        name = 'Sleeping Princess Target trigger',
+        type = 'target',
+        condition = Sleeping_Princess_Transform_condition
+    )
+)
+
+def Sleeping_Princess_effect(eff, player):
+    copy = deepcopy(Sleeping_Princess_Transform)
+    copy.source = eff.source
+    player.effects.append(copy)
+    player.triggers.append(copy.trigger)
+
+
+def Sleeping_Princess_reverse_effect(eff, player):
+    rm_eff = [i for i in player.effects if i.source==eff.source
+        and i.name=='Sleeping Princess Target Effect']
+    assert len(rm_eff)>0
+    player.effects.remove(rm_eff[0])
+    player.triggers.remove(rm_eff[0].trigger)
+
+Sleeping_Princess = Character(
+    name = 'Sleeping Princess',
+    lvl =3,
+    alignment='Good',
+    atk=0,
+    hlth=8,
+    type=['Princess'],
+    abils=[
+        Player_Effect(
+            name='Sleeping Princess Effect',
+            effect_func= Sleeping_Princess_effect,
+            reverse_effect_func = Sleeping_Princess_reverse_effect
+        )
+    ]
+)
 
 # Spell Weaver
 Spell_Weaver = Character(
@@ -565,8 +801,81 @@ Spell_Weaver = Character(
 )
 
 # The White Stag
-# Trojan Donkey
+def The_White_Stag_effect(source):
+    if source.position == 1:
+        effect_pos = [5]
+    elif source.position == 2:
+        effect_pos = [5,6]
+    elif source.position == 3:
+        effect_pos = [6,7]
+    elif source.position == 4:
+        effect_pos = [7]
+    else:
+        return
 
+    for n in effect_pos:
+        if source.owner.board[n] != None:
+            source.owner.board[n].change_eob_atk_mod(3 * (1 + source.upgraded))
+            source.owner.board[n].change_eob_hlth_mod(3 * (1 + source.upgraded))
+
+The_White_Stag = Character(
+    name= 'The White Stag',
+    atk=3,
+    hlth=3,
+    alignment = 'Good',
+    lvl=3,
+    type=['Animal'],
+    abils = [
+        Triggered_Effect(
+            name = 'White Stag attack effect',
+            effect_func = The_White_Stag_effect,
+            trigger = Trigger(
+                name='White Stag attack effect trigger',
+                type='attack',
+                condition = lambda self, char: self.source.source == char
+            )
+        )
+    ]
+)
+
+def Trojan_Donkey_effect(source):
+    empty_pos = [source.owner.board[i] == None for i in source.owner.board.keys()]
+    if any(empty_pos):
+        if source.upgraded:
+            elig_pool = [i for i in source.game.char_pool if i.lvl==source.owner.lvl]
+        else:
+            elig_pool = [i for i in source.game.char_pool if i.lvl<=source.owner.lvl]
+
+        selected = random.choice(elig_pool)
+        spawn_pos = source.owner.find_next_spawn_position(source.position)
+        assert spawn_pos != None
+        copy = selected.create_copy(source.owner, 'Trojan Donkey summon')
+        copy.token = True
+        copy.add_to_board(source.owner, spawn_pos)
+        if source.owner.game.verbose_lvl>=3:
+            print(source, 'summons', copy)
+
+
+# Trojan Donkey
+Trojan_Donkey = Character(
+    name = 'Trojan Donkey',
+    atk=1,
+    hlth=5,
+    alignment='Good',
+    lvl=3,
+    type=['Animal'],
+    abils = [
+        Triggered_Effect(
+            name = 'Trojan Donkey survive effect',
+            effect_func = Trojan_Donkey_effect,
+            trigger = Trigger(
+                name = 'Trojan Donkey survive effect trigger',
+                type = 'survive damage',
+                condition = lambda self, char: self.source.source == char
+            )
+        )
+    ]
+)
 # Tweedle Dee
 Tweedle_Dum = Character(
     name = 'Tweedle Dum',
@@ -578,13 +887,12 @@ Tweedle_Dum = Character(
     token = True
 )
 
-def Tweedle_Dee_Death_Effect(char):
+def Tweedle_Dee_Last_Breath_Effect(char):
     token = Tweedle_Dum.create_copy(char.owner, 'Tweedle Dee Death Effect')
     if char.upgraded:
         token.base_atk = 2
         token.base_hlth = 8
-    char.owner.board[char.position] = token
-    token.position = char.position
+    token.add_to_board(char.owner, char.position)
 
 Tweedle_Dee = Character(
     name = 'Tweedle Dee',
@@ -594,9 +902,9 @@ Tweedle_Dee = Character(
     lvl=3,
     type=['Dwarf'],
     abils=[
-        Death_Effect(
+        Last_Breath_Effect(
             name='Tweedle Dee Death Effect',
-            effect_func = Tweedle_Dee_Death_Effect
+            effect_func = Tweedle_Dee_Last_Breath_Effect
         )
     ]
 )
@@ -608,7 +916,7 @@ def Vainpire_effect(source):
 # Vain-Pire
 Vainpire = Character(
     name='Vain-pire',
-    atk=3,
+    atk=4,
     hlth=4,
     alignment='Evil',
     lvl=3,
@@ -714,12 +1022,11 @@ Sheep = Character(
     token = True
 )
 
-def Sheep_in_Wolfs_Clothing_Death_Effect(char):
+def Sheep_in_Wolfs_Clothing_Last_Breath_Effect(char):
     token = Sheep.create_copy(char.owner, 'Sheep in Wolfs Clothing death effect')
     token.base_atk = token.base_atk * (1+ char.upgraded)
     token.base_hlth = token.base_hlth * (1+ char.upgraded)
-    char.owner.board[char.position] = token
-    token.position = char.position
+    token.add_to_board(char.owner, char.position)
 
 Sheep_in_Wolfs_Clothing = Character(
     name = "Sheep in Wolf's Clothing",
@@ -729,9 +1036,9 @@ Sheep_in_Wolfs_Clothing = Character(
     lvl=4,
     type=['Animal'],
     abils=[
-        Death_Effect(
+        Last_Breath_Effect(
             name="Sheep in Wolf's Clothing Death Effect",
-            effect_func = Sheep_in_Wolfs_Clothing_Death_Effect
+            effect_func = Sheep_in_Wolfs_Clothing_Last_Breath_Effect
         )
     ]
 )

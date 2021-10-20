@@ -14,6 +14,12 @@ class Effect:
         if self.modifier!=None:
             self.modifier.source = obj
 
+    def apply_effect(self, char):
+        self.effect_func(char)
+
+    def reverse_effect(self, char):
+        self.reverse_effect_func(char)
+
     def __repr__(self):
         return self.name
 
@@ -60,7 +66,7 @@ class Support_Effect(Effect):
 
 # Effect that occurs on a character's death
 # Effect is added to a character object's abil attribute
-class Death_Effect(Effect):
+class Last_Breath_Effect(Effect):
     def __init__(self, name:str, effect_func=None, reverse_effect_func = None,
         condition = lambda x: True, modifier = None):
         super().__init__(name,effect_func, reverse_effect_func, condition, modifier)
@@ -161,9 +167,22 @@ class Triggered_Effect(Effect):
         self.counter = counter
         self.eob = eob
 
-    def trigger_effect(self):
+    def trigger_effect(self, effect_kwargs= None):
         if self.condition(self.source):
-            self.effect_func(self.source)
+            if effect_kwargs == None:
+                self.effect_func(self.source)
+            else:
+                self.effect_func(self.source, **effect_kwargs)
+
+    def apply_effect(self, obj):
+        self.source = obj
+        obj.effects.append(self)
+        obj.triggers.append(self.trigger)
+
+    def remove_effect(self, obj):
+        self.source = None
+        obj.effects.remove(self)
+        obj.triggers.remove(self.trigger)
 
     def __repr__(self):
         return self.name
@@ -173,6 +192,7 @@ class Quest(Triggered_Effect):
     def __init__(self, name:str, trigger, counter, effect_func = None):
         super().__init__(name, trigger, effect_func)
         self.counter = counter
+        self.counter_start_val = counter
         self.source = None
 
     def finish_effect(self):
@@ -202,11 +222,30 @@ class Modifier:
         return self.name
 
 class Trigger:
-    def __init__(self, name:str, type, condition= lambda x: True, battle_trigger = True):
+    def __init__(self, name:str, type, condition= lambda self, condition_obj,
+        triggered_obj = None: True, battle_trigger = True):
+
+        '''
+        object representing a trigger that needs to be checked for
+        params:
+        name - name of trigger
+        type - type of trigger. influences when this particular trigger is checked for
+        condition - a function with three arguments:
+            self - this should be the trigger object itself
+            condition_obj - the object that caused the trigger to activate. For
+            example, for slay triggers, this is the character that slew.
+            For many triggers this is just the source of the trigger and often not used.
+            triggered_obj - only used by slay triggers triggered. This is the character
+            that was slew in that case.
+        battle_trigger - boolean for whether a trigger is checked during the battle.
+        I think this was never really implemented to do anything.
+        '''
+
         self.name = name
-        assert type in ['buy','start of combat','cast','slay','die','attack',
-            'start of turn', 'end of turn', 'survive damage']
-        # tentative types: buy, start of combat, cast, slay, die, attack, end of turn
+        assert type in ['buy','start of combat','end of combat','cast','purchase'
+            ,'slay','die','attack', 'target', 'global slay', # if any char slays
+            'start of turn', 'end of turn', 'survive damage','clear front row']
+        # make sure type is one of the ones that have been programmed
         self.type = type
         self.condition = condition
         self.battle_trigger = battle_trigger
@@ -228,6 +267,14 @@ class Target:
             if self.condition(i):
                 legal_targets.append(i)
         self.source.selected_target = self.source.owner.input_choose(legal_targets)
+        self.source.owner.check_for_triggers('target', triggering_obj = self.source.selected_target)
+        # hard coded hack to get sleeping princess' transform to transfer the
+        # target of the spell to the transformed Awakened Princess.
+        if self.source.selected_target.name == 'Sleeping Princess':
+            # the last object in the owner's hand should be the transformed princess
+            assert self.source.owner.hand[-1].name == 'Awakened Princess'
+            self.source.selected_target = self.source.owner.hand[-1]
+
 
     def check_for_legal_targets(self, plyr):
         legal_targets = []

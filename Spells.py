@@ -1,10 +1,13 @@
 from c_Spell import Spell
+from Effects import Effect
 from Effects import Target
 from Effects import Trigger
 from Effects import Triggered_Effect
 from Effects import Shop_Effect
+from Effects import Modifier
 from Characters import Character
 from Characters import master_char_list
+from Characters import Cat_1_1
 from copy import deepcopy
 import random
 
@@ -17,7 +20,7 @@ def Eenie_Meenie_Miney_Mo_effect(spell):
         selected.change_hlth_mod(1)
         if spell.owner.game.verbose_lvl>=3:
             print('Eenie Meenie Miney Mo selects',selected)
-        selected.add_to_hand(spell.owner)
+        selected.add_to_hand(spell.owner, store_in_shop=True)
     else:
         if spell.owner.game.verbose_lvl>=3:
             print('Eenie Meenie Miney Mo has no creatures selects')
@@ -62,7 +65,7 @@ def For_Glory_char_effect(source):
         source.game.char_pool.remove(selected)
         if source.game.verbose_lvl>=3:
             print(source,'gains',selected,'from For Glory')
-        selected.add_to_hand(source)
+        selected.add_to_hand(source, store_in_shop=True)
 
 def For_Glory_effect(spell):
     effect=Triggered_Effect(
@@ -73,9 +76,7 @@ def For_Glory_effect(spell):
             type='end of turn'
         )
     )
-    effect.source = spell.owner
-    spell.owner.effects.append(effect)
-    spell.owner.triggers.append(effect.trigger)
+    effect.apply_effect(spell.owner)
 
 For_Glory = Spell(
     name = 'For Glory!',
@@ -103,22 +104,19 @@ def Magic_Research_reverse_effect(source):
         source.change_atk_mod(-1)
         source.change_hlth_mod(-1)
 
-Magic_Research_reverse_trig_effect = Triggered_Effect(
-    name='Magic Research reverse effect',
-    trigger=Trigger(
-        name= 'Magic Research reverse effect trigger',
-        type='end of turn'
-    ),
-    effect_func = Magic_Research_reverse_effect,
-    eob=True
-)
+
+
 
 def Magic_Research_effect(spell):
     spell.selected_target.change_atk_mod(1)
     spell.selected_target.change_hlth_mod(1)
-    copy = deepcopy(Magic_Research_reverse_trig_effect)
+    copy = Magic_Research_reverse_trig_effect = Effect(
+        name='Magic Research reverse effect',
+        reverse_effect_func = Magic_Research_reverse_effect
+    )
     copy.source = spell.selected_target
-    spell.selected_target.owner.triggers.append(copy.trigger)
+    spell.selected_target.eob_reverse_effects.append(copy)
+
 
 # Magic Research
 Magic_Research = Spell(
@@ -223,8 +221,27 @@ Candy_Rain = Spell(
     effect = Candy_Rain_effect
 )
 
+def Cats_Call_summon_effect(source):
+    for i in range(1,5):
+        if source.board[i] == None:
+            token = Cat_1_1.create_copy(source, "Cat's Call Summon")
+            token.add_to_board(plyr = source, position = i)
+    # remove a copy of the cats call summon effect after it's been triggered
+    rm_eff = [i for i in source.effects if i.name == "Cat's Call summon effect"][0]
+    rm_eff.remove_effect(source)
+
 def Cats_Call_effect(spell):
-    pass
+    eff = Triggered_Effect(
+        name= "Cat's Call summon effect",
+        effect_func = Cats_Call_summon_effect,
+        trigger=Trigger(
+            name="Cat's Call Trigger",
+            type='clear front row'
+        ),
+        eob = True
+    )
+    eff.apply_effect(spell.owner)
+
 
 Cats_Call = Spell(
     name="Cat's Call",
@@ -238,6 +255,7 @@ def Earthquake_dmg_effect(source):
         if source.opponent.board[i] != None:
             source.opponent.board[i].take_damage(2, source=source)
 
+
 def Earthquake_effect(spell):
     effect=Triggered_Effect(
         name = 'Earthquake triggered effect',
@@ -247,9 +265,9 @@ def Earthquake_effect(spell):
             type='start of combat'
         )
     )
-    effect.source = spell.owner
-    spell.owner.effects.append(effect)
-    spell.owner.triggers.append(effect.trigger)
+    effect.apply_effect(spell.owner)
+
+
 
 Earthquake = Spell(
     name = 'Earthquake',
@@ -270,13 +288,12 @@ def Falling_Stars_effect(spell):
         name = 'Falling Stars triggered effect',
         effect_func = Falling_Stars_dmg_effect,
         trigger = Trigger(
-            name='Falling Starts Effect trigger',
+            name='Falling Stars Effect trigger',
             type='start of combat'
         )
     )
-    effect.source = spell.owner
-    spell.owner.effects.append(effect)
-    spell.owner.triggers.append(effect.trigger)
+    effect.apply_effect(spell.owner)
+
 
 Falling_Stars = Spell(
     name = 'Falling Stars',
@@ -326,11 +343,12 @@ Healing_Potion = Spell(
 )
 
 def Kidnap_char_effect(source):
-    copy = source.last_opponent.first_char_dead.create_copy(source, 'Kidnap spell effect')
-    copy.current_cost = 0
-    copy.add_to_hand(source, store_in_shop=True)
-    if source.game.verbose_lvl >=3:
-        print('Kidnap creates', copy,'for',source)
+    if source.last_opponent.chars_dead != []:
+        copy = source.last_opponent.chars_dead[0].create_copy(source, 'Kidnap spell effect')
+        copy.current_cost = 0
+        copy.add_to_hand(source, store_in_shop=True)
+        if source.game.verbose_lvl >=3:
+            print('Kidnap creates', copy,'for',source)
 
 def Kidnap_effect(spell):
     effect=Triggered_Effect(
@@ -341,9 +359,8 @@ def Kidnap_effect(spell):
             type='end of turn'
         )
     )
-    effect.source = spell.owner
-    spell.owner.effects.append(effect)
-    spell.owner.triggers.append(effect.trigger)
+    effect.apply_effect(spell.owner)
+
 
 # Kidnap
 Kidnap = Spell(
@@ -352,6 +369,115 @@ Kidnap = Spell(
     cost=2,
     effect = Kidnap_effect
 )
+
+# Luna's Grace
+Lunas_Grace_Modifier = Modifier(
+    name="Luna's Grace Modifier",
+    atk_func = lambda char, atk, source: atk + 3,
+    hlth_func = lambda char, hlth, source: hlth + 3,
+    eob = True
+)
+
+
+Lunas_Grace = Spell(
+    name="Luna's Grace",
+    lvl=3,
+    cost=1,
+    effect= lambda spell: spell.selected_target.add_modifier(Lunas_Grace_Modifier),
+    target = Target(
+        name ="Luna's Grace target"
+    )
+)
+
+Potion_of_Heroism_Modifier = Modifier(
+    name="Potion of Heroism Modifier",
+    atk_func = lambda char, atk, source: atk + 2,
+    eob = True
+)
+
+
+Potion_of_Heroism = Spell(
+    name="Potion of Heroism",
+    lvl=3,
+    cost=1,
+    effect= lambda spell: spell.selected_target.add_modifier(Potion_of_Heroism_Modifier),
+    target = Target(
+        name ="Potion of Heroism target"
+    ),
+    spell_for_turn = False
+)
+
+def Spinning_Gold_effect_func(source):
+    if source.last_combat=='won':
+        source.next_turn_addl_gold += 3
+
+def Spinning_Gold_effect(spell):
+    effect = Triggered_Effect(
+        name = 'Spinning Gold Triggered Effect',
+        effect_func = Spinning_Gold_effect_func,
+        trigger = Trigger(
+            name='Spinning Gold Effect trigger',
+            type='end of turn'
+        )
+    )
+    effect.apply_effect(spell.owner)
+
+Spinning_Gold = Spell(
+    name = 'Spinning Gold',
+    lvl=3,
+    cost=1,
+    effect = Spinning_Gold_effect
+)
+
+def True_Loves_Kiss_effect(spell):
+    elig_pool = [i for i in spell.owner.game.char_pool if i.lvl==min(spell.selected_target.lvl+1,6)]
+    selected = random.choice(elig_pool)
+    spell.selected_target.permanent_transform(selected)
+
+True_Loves_Kiss = Spell(
+    name = "True Love's Kiss",
+    lvl=3,
+    cost=3,
+    effect = True_Loves_Kiss_effect,
+    target = Target(
+        name ="True Love's Kiss target"
+    )
+)
+
+Turkish_Delight = Spell(
+    name = 'Turkish Delight',
+    lvl=3,
+    cost=4,
+    effect = lambda spell: spell.owner.gain_exp(1)
+)
+
+
+def Wish_Upon_A_Star_effect_func(source):
+    if source.last_combat=='won':
+        source.gain_exp(1)
+    rm_eff = [i for i in source.effects if i.name == "Wish Upon a Star Triggered Effect"][0]
+    rm_eff.remove_effect(source)
+
+def Wish_Upon_A_Star_effect(spell):
+    spell.owner.gain_exp(1)
+    effect = Triggered_Effect(
+        name = 'Wish Upon a Star Triggered Effect',
+        effect_func = Wish_Upon_A_Star_effect_func,
+        trigger = Trigger(
+            name='Wish Upon a Star Effect trigger',
+            type='end of turn'
+        )
+    )
+    effect.apply_effect(spell.owner)
+
+
+Wish_Upon_A_Star= Spell(
+    name='Wish Upon a Star',
+    lvl=3,
+    cost=5,
+    effect= Wish_Upon_A_Star_effect
+)
+
 
 def Worm_Root_effect(spell):
     spell.selected_target.change_hlth_mod(3)
@@ -366,6 +492,484 @@ Worm_Root = Spell(
         name ="Worm Root Target",
         condition = lambda char: 'Monster' in char.type
     )
+)
+
+def Blessing_of_Athena_effect(spell):
+    for i in spell.owner.hand:
+        i.change_atk_mod(1)
+        i.change_hlth_mod(1)
+
+def Blessing_of_Athena_battle_effect(spell):
+    for i in spell.owner.board.values():
+        if i!= None:
+            i.change_atk_mod(1)
+            i.change_hlth_mod(1)
+
+Blessing_of_Athena = Spell(
+    name="Blessing of Athena",
+    lvl=4,
+    cost=4,
+    effect = Blessing_of_Athena_effect,
+    battle_effect = Blessing_of_Athena_battle_effect
+)
+
+def Burning_Palm_effect(spell):
+    spell.selected_target.change_atk_mod(3)
+
+Burning_Palm = Spell(
+    name = 'Burning Palm',
+    lvl=4,
+    cost=2,
+    effect = Burning_Palm_effect,
+    target = Target(
+        name ="Burning Palm Target"
+    )
+)
+
+def Feed_the_Kraken_effect(spell):
+    spell.owner.current_gold += 2
+    spell.selected_target.remove_from_hand()
+
+Feed_the_Kraken = Spell(
+    name = 'Feed the Kraken',
+    lvl=4,
+    cost=0,
+    effect = Feed_the_Kraken_effect,
+    target = Target(
+        name ="Feed the Kraken Target"
+    )
+)
+
+def Fireball_dmg_effect(source):
+    front_pos = [i for i in range(1,5) if source.opponent.board[i]!= None]
+    if front_pos != []:
+        selected = random.choice(front_pos)
+        source.opponent.board[selected].take_damage(4, source=source)
+        back_targets = {1:[5], 2:(5,6), 3:(6,7), 4:[7]}
+        for i in back_targets[selected]:
+            if source.opponent.board[i] != None:
+                source.opponent.board[i].take_damage(4, source=source)
+
+def Fireball_effect(spell):
+    effect=Triggered_Effect(
+        name = 'Fireball triggered effect',
+        effect_func = Fireball_dmg_effect,
+        trigger = Trigger(
+            name='Fireball Effect trigger',
+            type='start of combat'
+        )
+    )
+    effect.apply_effect(spell.owner)
+
+Fireball = Spell(
+    name='Fireball',
+    lvl=4,
+    cost=1,
+    effect = Fireball_effect
+)
+
+def Hi_Ho_effect(spell):
+    elig_pool = [i for i in spell.owner.game.char_pool if 'Dwarf' in i.type]
+    selected = random.choice(elig_pool)
+    spell.owner.game.char_pool.remove(selected)
+    if spell.owner.game.verbose_lvl>=3:
+        print(spell.owner,'gains',selected,'from Hi Ho!')
+    selected.add_to_hand(spell.owner, store_in_shop=True)
+    dwarves = [i for i in spell.owner.hand if 'Dwarf' in i.type]
+    for i in dwarves:
+        i.change_atk_mod(1)
+        i.change_hlth_mod(1)
+
+Hi_Ho = Spell(
+    name = 'Hi Ho!',
+    lvl=4,
+    cost=4,
+    effect = Hi_Ho_effect
+)
+
+def Lightning_Bolt_dmg_effect(source):
+    back_pos = [i for i in range(5,8) if source.opponent.board[i]!= None]
+    if back_pos != []:
+        selected = random.choice(back_pos)
+        source.opponent.board[selected].take_damage(10, source=source)
+
+def Lightning_Bolt_effect(spell):
+    effect=Triggered_Effect(
+        name = 'Lightning Bolt triggered effect',
+        effect_func = Lightning_Bolt_dmg_effect,
+        trigger = Trigger(
+            name='Lightning Bolt Effect trigger',
+            type='start of combat'
+        )
+    )
+    effect.apply_effect(spell.owner)
+
+Lightning_Bolt = Spell(
+    name='Lightning Bolt',
+    lvl=4,
+    cost=2,
+    effect = Lightning_Bolt_effect
+)
+
+def Masquerade_Ball_effect(spell):
+    lvl_of_shop = [i.lvl for i in spell.owner.shop if isinstance(i, Character)]
+    for i in spell.owner.shop:
+        i.scrub_buffs(eob_only=False)
+        i.owner = None
+        if isinstance(i, Character) and i.inshop:
+            spell.owner.game.add_to_char_pool(i)
+
+    spell.owner.shop=[]
+    game = spell.owner.game
+    lvl_of_shop = [min(6, i+1) for i in lvl_of_shop]
+    shop=[]
+    for lvl in lvl_of_shop:
+        elig_pool = [i for i in game.char_pool if i.lvl == lvl and i not in shop]
+        choice = random.choice(elig_pool)
+        elig_pool.remove(choice)
+        shop.append(choice)
+    for i in shop:
+        game.char_pool.remove(i)
+        i.owner = spell.owner
+        i.zone= 'shop'
+
+    spell.owner.shop=shop
+
+    for eff in spell.owner.effects:
+        if isinstance(eff, Shop_Effect):
+            for obj in spell.owner.shop:
+                eff.apply_effect(obj)
+
+Masquerade_Ball = Spell(
+    name = 'Masquerade Ball',
+    lvl=4,
+    cost=2,
+    effect = Masquerade_Ball_effect
+)
+
+def Merlins_Test_reverse_effect(source):
+    if source.owner != None and source.owner.last_combat != 'won':
+        source.change_atk_mod(-4)
+        source.change_hlth_mod(-4)
+
+def Merlins_Test_effect(spell):
+    spell.selected_target.change_atk_mod(4)
+    spell.selected_target.change_hlth_mod(4)
+    copy = Effect(
+        name="Merlin's Test reverse effect",
+        reverse_effect_func = Merlins_Test_reverse_effect
+    )
+    copy.source = spell.selected_target
+    spell.selected_target.eob_reverse_effects.append(copy)
+
+
+
+Merlins_Test = Spell(
+    name="Merlin's Test",
+    lvl=4,
+    cost=3,
+    effect = Merlins_Test_effect,
+    target = Target(
+        name ="Merlin's Test Target"
+    )
+)
+
+Queens_Grace_Modifier = Modifier(
+    name="Queen's Grace Modifier",
+    atk_func = lambda char, atk, source: atk + 7,
+    hlth_func = lambda char, hlth, source: hlth + 7,
+    eob = True
+)
+
+Queens_Grace = Spell(
+    name="Queen's Grace",
+    lvl=4,
+    cost=2,
+    effect = lambda spell: spell.selected_target.add_modifier(Queens_Grace_Modifier),
+    target = Target(
+        name ="Queen's Grace target",
+        condition = lambda char: 'Prince' in char.type or 'Princess' in char.type
+    )
+)
+
+Ride_of_the_Valkyries_Modifier = Modifier(
+    name="Ride of the Valkyries Modifier",
+    atk_func = lambda char, atk, source: atk + 2,
+    eob = True
+)
+
+def Ride_of_the_Valkyries_effect(spell):
+    for i in spell.owner.hand:
+        i.add_modifier(Ride_of_the_Valkyries_Modifier)
+
+Ride_of_the_Valkyries = Spell(
+    name= "Ride of the Valkyries",
+    lvl=4,
+    cost=2,
+    effect = Ride_of_the_Valkyries_effect
+)
+
+def Stoneskin_effect(spell):
+    spell.selected_target.change_hlth_mod(3)
+
+
+Stoneskin = Spell(
+    name = 'Stoneskin',
+    lvl=4,
+    cost=2,
+    effect = Stoneskin_effect,
+    target = Target(
+        name ="Stoneskin Target"
+    )
+)
+
+def The_End_effect(spell):
+    spell.owner.gain_exp(1)
+    spell.selected_target.remove_from_hand()
+
+The_End = Spell(
+    name='The End',
+    lvl=4,
+    cost=3,
+    effect = The_End_effect,
+    target = Target(
+        name ="The End Target"
+    )
+)
+
+def Toil_and_Trouble_effect(spell):
+    if len(spell.owner.hand)>=2:
+        selected = random.sample(spell.owner.hand, 2)
+    elif len(spell.owner.hand)==1:
+        selected = [spell.owner.hand[0]]
+    else:
+        return
+    for i in selected:
+        i.change_atk_mod(2)
+        i.change_hlth_mod(2)
+
+Toil_and_Trouble = Spell(
+    name='Toil and Trouble',
+    lvl=4,
+    cost=2,
+    effect = Toil_and_Trouble_effect
+)
+
+def Lucky_Coin_effect(spell):
+    spell.owner.current_gold += 1
+
+Lucky_Coin = Spell(
+    name= 'Lucky Coin',
+    lvl=5,
+    cost=0,
+    effect = Lucky_Coin_effect,
+    spell_for_turn=False
+)
+
+def Poison_Apple_dmg_effect(source):
+    if any([i !=None for i in source.opponent.board.values()]):
+        selected = random.choice([i for i in source.opponent.board.values() if i != None])
+        hlth_mod = selected.hlth() - 1
+
+        # this modifier is slightly different in that its generated within the function
+        Poison_Apple_Modifier = Modifier(
+            name="Poison Apple Modifier",
+            hlth_func = lambda char, hlth, source: hlth - hlth_mod,
+            eob = True
+        )
+
+        selected.add_modifier(Poison_Apple_Modifier)
+
+def Poison_Apple_effect(spell):
+    effect=Triggered_Effect(
+        name = 'Poison Apple triggered effect',
+        effect_func = Poison_Apple_dmg_effect,
+        trigger = Trigger(
+            name='Poison Apple Effect trigger',
+            type='start of combat'
+        )
+    )
+    effect.apply_effect(spell.owner)
+
+Poison_Apple = Spell(
+    name = 'Poison Apple',
+    lvl=5,
+    cost=2,
+    effect= Poison_Apple_effect
+)
+
+def Shrivel_dmg_effect(source):
+    if any([i !=None for i in source.opponent.board.values()]):
+        selected = random.choice([i for i in source.opponent.board.values() if i != None])
+
+        # this modifier is slightly different in that its generated within the function
+        Shrivel_Modifier = Modifier(
+            name="Shrivel Modifier",
+            hlth_func = lambda char, hlth, source: hlth - 12,
+            atk_func = lambda char, atk, source: atk - 12,
+            eob = True
+        )
+
+        selected.add_modifier(Shrivel_Modifier)
+
+
+def Shrivel_effect(spell):
+    effect=Triggered_Effect(
+        name = 'Shrivel triggered effect',
+        effect_func = Shrivel_dmg_effect,
+        trigger = Trigger(
+            name='Shrivel Effect trigger',
+            type='start of combat'
+        )
+    )
+    effect.apply_effect(spell.owner)
+
+Shrivel = Spell(
+    name='Shrivel',
+    lvl=5,
+    cost=2,
+    effect=Shrivel_effect
+)
+
+def Drink_Me_Potion_effect(spell):
+    for i in spell.owner.shop:
+        i.scrub_buffs(eob_only=False)
+        i.owner = None
+        if isinstance(i, Character) and i.inshop:
+            spell.owner.game.add_to_char_pool(i)
+
+    spell.owner.shop = []
+
+    elig_spell_pool = [i for i in spell.owner.game.spells if i.lvl <= spell.owner.lvl]
+    spell.owner.shop = random.sample(list(elig_spell_pool),6)
+
+    for eff in spell.owner.effects:
+        if isinstance(eff, Shop_Effect):
+            for obj in spell.owner.shop:
+                eff.apply_effect(obj)
+
+
+Drink_Me_Potion = Spell(
+    name = 'Drink Me Potion',
+    lvl=6,
+    cost = 1,
+    effect = Drink_Me_Potion_effect,
+    spell_for_turn = False
+)
+
+def Evil_Twin_effect(spell):
+    selected = spell.selected_target
+    copy = selected.create_copy(spell.owner, 'Evil Twin copy', plain_copy=True)
+    copy.alignment = 'Evil'
+    copy.add_to_hand(spell.owner, store_in_shop=True)
+
+Evil_Twin = Spell(
+    name="Evil Twin",
+    lvl=6,
+    cost=8,
+    effect = Evil_Twin_effect,
+    target = Target(
+        name ="Evil Twin Target",
+        condition = lambda char: char.get_alignment()=='Good'
+    )
+)
+
+def Fog_begin_combat_effect(source):
+    for i in source.opponent.board.values():
+        if i!= None and i.ranged:
+            atk_mod = round(i.atk() / 2)
+
+            Fog_Modifier = Modifier(
+                name="Fog Modifier",
+                atk_func = lambda char, atk, source: atk - atk_mod,
+                eob = True
+            )
+            i.add_modifier(Fog_Modifier)
+
+def Fog_effect(spell):
+    effect=Triggered_Effect(
+        name = 'Fog triggered effect',
+        effect_func = Fog_begin_combat_effect,
+        trigger = Trigger(
+            name='Fog Effect trigger',
+            type='start of combat'
+        )
+    )
+    effect.apply_effect(spell.owner)
+
+Fog = Spell(
+    name = 'Fog',
+    lvl=6,
+    cost=2,
+    effect = Fog_effect
+)
+
+def Gigantify_effect(spell):
+    spell.selected_target.change_hlth_mod(10)
+
+Gigantify = Spell(
+    name = 'Gigantify',
+    lvl=6,
+    cost=5,
+    effect = Gigantify_effect,
+    target = Target(
+        name ="Gigantify Target"
+    )
+)
+
+def Hugeify_effect(spell):
+    spell.selected_target.change_atk_mod(10)
+
+Hugeify = Spell(
+    name = 'Hugeify',
+    lvl=6,
+    cost=5,
+    effect = Hugeify_effect,
+    target = Target(
+        name ="Hugeify Target"
+    )
+)
+
+# It was all a dream
+
+def Knighthood_effect(spell):
+    spell.selected_target.upgraded = True
+
+Knighthood = Spell(
+    name = 'Knighthood',
+    lvl = 6,
+    cost =12,
+    effect = Knighthood_effect,
+    target = Target(
+        name ="Knighthood Target",
+        condition = lambda char: char.upgraded==False
+    )
+)
+
+# Pigomorph
+
+
+def Smite_dmg_effect(source):
+    if any([i !=None for i in source.opponent.board.values()]):
+        selected = random.choice([i for i in source.opponent.board.values() if i != None])
+        selected.take_damage(30, source=source)
+
+def Smite_effect(spell):
+    effect=Triggered_Effect(
+        name = 'Smite triggered effect',
+        effect_func = Smite_dmg_effect,
+        trigger = Trigger(
+            name='Smite Effect trigger',
+            type='start of combat'
+        )
+    )
+    effect.apply_effect(spell.owner)
+
+Smite = Spell(
+    name = 'Smite',
+    lvl=6,
+    cost=3,
+    effect = Smite_effect
 )
 
 objs=deepcopy(list(locals().keys()))

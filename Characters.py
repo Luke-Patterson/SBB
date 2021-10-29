@@ -2,6 +2,8 @@ from c_Character import Character
 from copy import deepcopy
 from Effects import *
 import random
+from datetime import datetime
+
 
 Baby_Dragon = Character(
     name='Baby Dragon',
@@ -211,7 +213,7 @@ Kitty_Cutpurse = Character(
     abils=[
         Triggered_Effect(
             name='Kitty Cutpurse Slay effect',
-            effect_func = lambda source: source.owner.gain_gold_next_turn(1 * (1 + source.upgraded)),
+            effect_func = lambda source, slain, slain_attribs: source.owner.gain_gold_next_turn(1 * (1 + source.upgraded)),
             trigger = Trigger(
                 name = 'Kitty Cutpurse Slay trigger',
                 type = 'slay'
@@ -257,7 +259,7 @@ Frog_Prince = Character(
 
 def Lonely_Prince_Transform_func(char, eff):
     copy = Frog_Prince.create_copy(char.owner, 'Frog Prince Transform Effect')
-    eff.source.permanent_transform(copy)
+    eff.source.transform(copy)
 
 Lonely_Prince_Transform = Purchase_Effect(
     name='Lonely Prince Purchase Effect',
@@ -317,10 +319,14 @@ Mad_Mim = Character(
 )
 
 # Polywoggle
-def Polywoggle_effect(source):
+def Polywoggle_effect(source, slain, slain_attribs):
     elig_pool = [i for i in source.game.char_pool if i.lvl==min(source.owner.lvl+1,6)]
     selected = random.choice(elig_pool)
-    source.permanent_transform(selected)
+    if source.token:
+        selected.token = True
+        source.transform(selected)
+    else:
+        source.transform(selected)
 
 Polywoggle = Character(
     name='Polywoggle',
@@ -407,24 +413,24 @@ Wizards_Familiar = Character(
     ]
 )
 
-Adventurer = Character(
-    name = "Adventurer",
-    atk=1,
-    hlth=1,
-    alignment='Good',
-    lvl=3,
-    type=['Princess'],
-    abils=[
-        Triggered_Effect(
-            name='Adventurer Slay effect',
-            effect_func = lambda source: source.owner.gain_exp(1 * (1 + source.upgraded)),
-            trigger = Trigger(
-                name = 'Adventurer Slay trigger',
-                type = 'slay'
-            )
-        )
-    ]
-)
+# Adventurer = Character(
+#     name = "Adventurer",
+#     atk=1,
+#     hlth=1,
+#     alignment='Good',
+#     lvl=3,
+#     type=['Princess'],
+#     abils=[
+#         Triggered_Effect(
+#             name='Adventurer Slay effect',
+#             effect_func = lambda source: source.owner.gain_exp(1 * (1 + source.upgraded)),
+#             trigger = Trigger(
+#                 name = 'Adventurer Slay trigger',
+#                 type = 'slay'
+#             )
+#         )
+#     ]
+# )
 
 Brave_Princess = Character(
     name = "Brave Princess",
@@ -445,29 +451,38 @@ Brave_Princess = Character(
     ]
 )
 
-# def Darkwood_Creeper_effect(source):
-#
-#
-# # Darkwood Creeper
-# Darkwood_Creeper = Creature(
-#     name='Darkwood Creeper',
-#     atk=0,
-#     hlth=3,
-#     alignment='Evil',
-#     lvl=3,
-#     type=['Treant'],
-#     abils=[
-#         Triggered_Effect(
-#             name = 'Trojan Donkey survive effect',
-#             effect_func = Darkwood_Creeper_effect,
-#             trigger = Trigger(
-#                 name = 'Darkwood Creeper survive effect trigger',
-#                 type = 'survive damage'
-#             )
-#         )
-#     ]
-# )
+def Darkwood_Creeper_effect(source, damaged_char):
+    damaged_char.change_atk_mod(1 * (1 + source.upgraded))
+
+# Darkwood Creeper
+Darkwood_Creeper = Character(
+    name='Darkwood Creeper',
+    atk=0,
+    hlth=3,
+    alignment='Evil',
+    lvl=3,
+    type=['Treant'],
+    abils=[
+        Triggered_Effect(
+            name = 'Darkwood Creeper survive effect',
+            effect_func = Darkwood_Creeper_effect,
+            trigger = Trigger(
+                name = 'Darkwood Creeper survive effect trigger',
+                type = 'survive damage'
+            )
+        )
+    ]
+)
+
 # Dubly
+# Dubly = Character(
+#     name = 'Dubly',
+#     atk=1,
+#     hlth=1,
+#     lvl=3,
+#     type=['Dwarf']
+# )
+
 
 # Good Witch of the North
 def Good_Witch_support_effect(char, source):
@@ -552,8 +567,21 @@ Good_Sheep = Character(
     token = True
 )
 
+Good_Sheep_upgr = Character(
+    name = 'Sheep from upgraded',
+    atk=2,
+    hlth=2,
+    alignment='Good',
+    lvl=2,
+    type=['Animal'],
+    token = True
+)
+
 def Princess_Peep_Last_Breath_Effect(char):
-    char.owner.multi_spawn(Good_Sheep, 3, char.position, char.upgraded)
+    if char.upgraded:
+        char.owner.multi_spawn(Good_Sheep_upgr, 3, char.position, char.upgraded)
+    else:
+        char.owner.multi_spawn(Good_Sheep, 3, char.position, char.upgraded)
 
 Princess_Peep = Character(
     name = 'Princess Peep',
@@ -735,7 +763,7 @@ Awakened_Princess = Character(
 
 def Sleeping_Princess_Transform_func(char):
     copy = Awakened_Princess.create_copy(char.owner, 'Sleeping Princess Transform Effect')
-    char.permanent_transform(copy)
+    char.transform(copy)
 
 def Sleeping_Princess_Transform_condition (self, char):
     return self.source.source == char
@@ -838,7 +866,7 @@ The_White_Stag = Character(
     ]
 )
 
-def Trojan_Donkey_effect(source):
+def Trojan_Donkey_effect(source, damaged_char):
     empty_pos = [source.owner.board[i] == None for i in source.owner.board.keys()]
     if any(empty_pos):
         if source.upgraded:
@@ -909,7 +937,7 @@ Tweedle_Dee = Character(
     ]
 )
 
-def Vainpire_effect(source):
+def Vainpire_effect(source, slain, slain_attribs):
     source.change_atk_mod(1 * (1+source.upgraded))
     source.change_hlth_mod(1 * (1+source.upgraded))
 
@@ -960,13 +988,83 @@ Wicked_Witch_of_the_West = Character(
 )
 
 # Bearded Vulture
+#Bearded_Vulture =
+
 # Bossy
+Bossy_Modifier = Modifier(
+    name= 'Bossy Modifier',
+    atk_func = lambda char, atk, source: atk + 2 * (1 + source.upgraded),
+    hlth_func = lambda char, hlth, source: hlth + 2 * (1 + source.upgraded)
+)
+
+
+Bossy = Character(
+    name='Bossy',
+    atk=2,
+    hlth=2,
+    lvl=4,
+    type=['Dwarf'],
+    abils = [
+        Global_Static_Effect(
+            name = 'Bossy effect',
+            effect_func = lambda char: char.add_modifier(Bossy_Modifier),
+            reverse_effect_func = lambda char: char.remove_modifier(Bossy_Modifier),
+            condition = lambda char: 'Dwarf' in char.type,
+            modifier = Bossy_Modifier
+        )
+    ]
+)
+
 # Broc Lee
+def Broc_Lee_effect(source, damaged_char):
+    source.change_eob_atk_mod(10 * (1 + source.upgraded))
+
+Broc_Lee = Character(
+    name = 'Broc Lee',
+    atk = 0,
+    hlth = 15,
+    lvl = 4,
+    type = ['Treant'],
+    abils = [
+        Triggered_Effect(
+            name = 'Broc Lee survive effect',
+            effect_func = Broc_Lee_effect,
+            trigger = Trigger(
+                name = 'Broc Lee survive effect trigger',
+                type = 'survive damage',
+                condition = lambda self, char: self.source.source == char
+            )
+        )
+    ]
+)
+
 # Copycat
 # Court Wizard
 # Fairy Godmother
 # Friendly Spirit
 # Greedy
+def Greedy_effect(source, damaged_char):
+    source.owner.next_turn_addl_gold += 1 * (1 + source.upgraded)
+
+Greedy = Character(
+    name = 'Greedy',
+    atk = 4,
+    hlth = 8,
+    lvl = 4,
+    type = ['Dwarf'],
+    abils = [
+        Triggered_Effect(
+            name = 'Greedy survive effect',
+            effect_func = Greedy_effect,
+            trigger = Trigger(
+                name = 'Greedy survive effect trigger',
+                type = 'survive damage',
+                condition = lambda self, char: self.source.source == char
+            )
+        )
+    ]
+)
+
 # Grim Soul
 # Heartwood Elder
 # Hungry Hungry Hippocampus
@@ -1005,14 +1103,101 @@ Lady_of_the_Lake = Character(
 
 
 # Lightning Dragon
+
 # Medusa
+Statue = Character(
+    name = 'Statue',
+    atk=0,
+    hlth=6,
+    lvl=1,
+    type=['Statue'],
+    token = True
+)
+
+def Medusa_effect(source):
+    orig = source.atk_target
+    if source.atk_target.name != "Statue":
+        token = Statue.create_copy(source.owner.opponent, 'Medusa attack effect')
+        source.atk_target.transform(token, preserve_mods = False, temporary = True)
+        source.atk_target = token
+
+
+Medusa = Character(
+    name = 'Medusa',
+    atk = 3,
+    hlth = 3,
+    alignment = 'Evil',
+    lvl = 4,
+    type = ['Monster'],
+    abils = [
+        Triggered_Effect(
+            name = 'Medusa attack effect',
+            effect_func = Medusa_effect,
+            trigger = Trigger(
+                name='Medusa attack effect trigger',
+                type='attack',
+                condition = lambda self, char: self.source.source == char
+            )
+        )
+    ]
+)
+
 # Prince Arthur
+# def Prince_Arthur_effect(source):
+#     for char in source.owner.board.values():
+#         if char != None and ('Prince' in char.type or 'Princess' in char.type) and char.upgraded:
+#             char.change_atk_mod(2 * (1 + source.upgraded))
+#             char.change_hlth_mod(2 * (1 + source.upgraded))
+#
+#     import pdb; pdb.set_trace()
+#
+# Prince_Arthur = Character(
+#     name = 'Prince Arthur',
+#     atk = 5,
+#     hlth = 5,
+#     alignment = 'Good',
+#     lvl = 4,
+#     type=['Prince'],
+#     abils = [
+#         Triggered_Effect(
+#             name = 'Prince Arthur triggered effect',
+#             effect_func = Prince_Arthur_effect,
+#             trigger = Trigger(
+#                 name='Earthquake Effect trigger',
+#                 type='start of combat',
+#                 battle_trigger = True
+#             ),
+#         )
+#     ]
+# )
+
 # Princess Pea
 # Puff Puff
+def Puff_Puff_effect(char):
+    for i in char.owner.hand:
+        if i.name == 'Puff Puff':
+            i.change_atk_mod(1 * (1+char.upgraded))
+            i.change_hlth_mod(1 * (1+char.upgraded))
+
+Puff_Puff = Character(
+    name = 'Puff Puff',
+    atk=6,
+    hlth =6,
+    lvl=4,
+    alignment='Good',
+    type=['Puff Puff'],
+    abils=[
+        Last_Breath_Effect(
+            name = 'Puff Puff Death Effect',
+            effect_func = Puff_Puff_effect
+        )
+    ]
+)
+
 # Riverwish Mermaid
 
 # Sheep in Wolf's clothing
-Sheep = Character(
+Bad_Sheep = Character(
     name = 'Sheep',
     atk=5,
     hlth=5,
@@ -1023,7 +1208,7 @@ Sheep = Character(
 )
 
 def Sheep_in_Wolfs_Clothing_Last_Breath_Effect(char):
-    token = Sheep.create_copy(char.owner, 'Sheep in Wolfs Clothing death effect')
+    token = Bad_Sheep.create_copy(char.owner, 'Sheep in Wolfs Clothing death effect')
     token.base_atk = token.base_atk * (1+ char.upgraded)
     token.base_hlth = token.base_hlth * (1+ char.upgraded)
     token.add_to_board(char.owner, char.position)
@@ -1066,13 +1251,171 @@ Sporko = Character(
     ]
 )
 
-
 # The Chupacabra
+def Chupacabra_effect(source, slain, slain_attribs):
+    source.change_atk_mod(1 * (1+source.upgraded))
+    source.change_hlth_mod(1 * (1+source.upgraded))
+    back_targets = {1:[5], 2:(5,6), 3:(6,7), 4:[7]}
+    if source.position in back_targets.keys():
+        for i in back_targets[source.position]:
+            if source.owner.board[i] != None:
+                source.owner.board[i].change_atk_mod(1 * (1+source.upgraded))
+                source.owner.board[i].change_hlth_mod(1 * (1+source.upgraded))
+
+Chupacabra = Character(
+    name='The Chupacabra',
+    atk=7,
+    hlth=5,
+    alignment='Evil',
+    lvl=4,
+    type=['Monster'],
+    abils=[
+        Triggered_Effect(
+            name='The Chupacabra Slay effect',
+            effect_func = Chupacabra_effect,
+            trigger = Trigger(
+                name = 'The Chupacabra Slay trigger',
+                type = 'slay'
+            )
+        )
+    ]
+)
+
 # The Nutcracker
+The_Nutcracker = Character(
+    name='Cinder-ella',
+    atk=4,
+    hlth=10,
+    alignment='Good',
+    lvl=4,
+    type=['Prince','Treant'],
+    abils = [
+        Quest(
+            name= 'The Nutcracker Quest',
+            trigger = Trigger(
+                name = 'The Nutcracker survive effect trigger',
+                type = 'survive damage',
+                condition = lambda self, char: self.source.source == char
+            ),
+            counter = 4
+        )
+    ]
+)
+
 # Angry
+def Angry_effect(source, damaged_char):
+    for i in source.owner.board.values():
+        if i != None and 'Dwarf' in i.type:
+            i.change_eob_atk_mod(2 * (1+source.upgraded))
+            i.change_eob_hlth_mod(2 * (1+source.upgraded))
+
+Angry = Character(
+    name = 'Angry',
+    atk = 4,
+    hlth = 10,
+    lvl = 5,
+    type = ['Dwarf'],
+    abils = [
+        Triggered_Effect(
+            name = 'Angry survive effect',
+            effect_func = Angry_effect,
+            trigger = Trigger(
+                name = 'Angry survive effect trigger',
+                type = 'survive damage',
+                condition = lambda self, char: self.source.source == char
+            )
+        )
+    ]
+)
+
 # Aon
 # Baba Yaga
+
 # Baby Bear
+Papa_Bear = Character(
+    name = 'Papa Bear',
+    atk=4,
+    hlth=4,
+    alignment='Good',
+    lvl=1,
+    type=['Animal'],
+    token = True
+)
+
+Papa_Bear_upgr = Character(
+    name = 'Papa Bear from upgraded',
+    atk=8,
+    hlth=8,
+    alignment='Good',
+    lvl=1,
+    type=['Animal'],
+    token = True
+)
+
+def Mama_Bear_Last_Breath_Effect(char):
+    token = Papa_Bear.create_copy(char.owner, 'Mama Bear Death Effect')
+    token.add_to_board(plyr = char.owner, position = char.position)
+
+
+Mama_Bear = Character(
+    name = 'Mama Bear',
+    atk=2,
+    hlth=2,
+    alignment='Good',
+    lvl=1,
+    type=['Animal'],
+    token = True,
+    abils=[
+        Last_Breath_Effect(
+            name='Mama Bear Death Effect',
+            effect_func = Mama_Bear_Last_Breath_Effect
+        )
+    ]
+)
+
+def Mama_Bear_upgr_Last_Breath_Effect(char):
+    token = Papa_Bear_upgr.create_copy(char.owner, 'Mama Bear Death Effect')
+    token.add_to_board(plyr = char.owner, position = char.position)
+
+Mama_Bear_upgr = Character(
+    name = 'Mama Bear from upgraded',
+    atk=4,
+    hlth=4,
+    alignment='Good',
+    lvl=1,
+    type=['Animal'],
+    token = True,
+    abils=[
+        Last_Breath_Effect(
+            name='Mama Bear from upgraded Death Effect',
+            effect_func = Mama_Bear_upgr_Last_Breath_Effect
+        )
+    ]
+)
+
+
+def Baby_Bear_Last_Breath_Effect(char):
+    if char.upgraded:
+        token = Mama_Bear_upgr.create_copy(char.owner, 'Baby Bear Death Effect')
+    else:
+        token = Mama_Bear.create_copy(char.owner, 'Baby Bear Death Effect')
+    token.add_to_board(plyr = char.owner, position = char.position)
+
+Baby_Bear = Character(
+    name = 'Baby Bear',
+    atk=1,
+    hlth=1,
+    alignment='Good',
+    lvl=5,
+    type=['Animal'],
+    abils=[
+        Last_Breath_Effect(
+            name='Baby Bear Death Effect',
+            effect_func = Baby_Bear_Last_Breath_Effect
+        )
+    ]
+)
+
 # Cupid
 # Lancelot - placeholder for a lvl 5 char
 Lancelot = Character(
@@ -1094,6 +1437,30 @@ Lancelot = Character(
     # ]
 )
 # Monster Book
+def Monster_Book_Last_Breath_Effect(char):
+    Deck_spells = ['Falling Stars','Earthquake', 'Fireball', 'Lightning Bolt', 'Ride of the Valkyries',
+        'Blessing of Athena', 'Poison Apple', 'Shrivel', 'Smite','Pigomorph']
+    elig_spells = [i for i in char.owner.game.spells if i.name in Deck_spells
+        and i.lvl <= char.owner.lvl]
+    if elig_spells != []:
+        for _ in range(1 * (1 + char.upgraded)):
+            selected = random.choice(elig_spells)
+            selected.cast(char.owner, in_combat = True)
+
+Monster_Book = Character(
+    name='Monster Book',
+    atk=10,
+    hlth=4,
+    alignment='Evil',
+    lvl=5,
+    type=['Monster'],
+    abils =[
+        Last_Breath_Effect(
+            name='Monster Book Death Effect',
+            effect_func = Monster_Book_Last_Breath_Effect
+        )
+    ]
+)
 # Nian, Sea Terror
 Nian_Sea_Terror = Character(
     name='Nian, Sea Terror',
@@ -1115,15 +1482,179 @@ Nian_Sea_Terror = Character(
 )
 # Rotten Appletree
 # Soltak Ancient
+
 # Southern Siren
+def Southern_Siren_effect(source, slain, slain_attribs):
+    for _ in range(1 * (1+source.upgraded)):
+        if source.position==None:
+            start_pos = source.last_position
+        else:
+            start_pos = source.position
+        pos = source.owner.find_next_spawn_position(start_pos)
+        if pos != None:
+            copy = slain.create_copy(source.owner, 'Southern Siren summon', plain_copy=False)
+            copy.token = True
+
+            # reattach the original slain char's attributes to the char
+            for i in slain_attribs.keys():
+                copy.__dict__[i] = slain_attribs[i]
+
+            copy.add_to_board(plyr = source.owner, position = pos)
+
+Southern_Siren = Character(
+    name='Southern Siren',
+    atk=10,
+    hlth=10,
+    alignment='Evil',
+    lvl=5,
+    type=['Monster'],
+    abils=[
+        Triggered_Effect(
+            name='Southern Siren Slay effect',
+            effect_func = Southern_Siren_effect,
+            trigger = Trigger(
+                name = 'Southern Siren Slay trigger',
+                type = 'slay'
+            )
+        )
+    ]
+)
+
 # Wombats in Disguise
+def Wombats_in_Disguise_Last_Breath_Effect(char):
+    elig_pool = [i for i in char.game.char_pool]
+    selected = random.choice(elig_pool)
+    copy = selected.create_copy(char.owner, 'Wombats in Disguise summon')
+    copy.token = True
+    copy.change_atk_mod(char.atk() * (1 + char.upgraded))
+    copy.change_hlth_mod(char.hlth() * (1 + char.upgraded))
+    copy.add_to_board(plyr = char.owner, position = char.position)
+
+Wombats_in_Disguise = Character(
+    name = 'Wombats in Disguise',
+    atk=4,
+    hlth=4,
+    alignment='Neutral',
+    lvl=5,
+    type=['Animal'],
+    abils=[
+        Last_Breath_Effect(
+            name='Wombats in Disguise Death Effect',
+            effect_func = Wombats_in_Disguise_Last_Breath_Effect
+        )
+    ]
+)
+
 # Wretched Mummy
+def Wretched_Mummy_Last_Breath_Effect(char):
+    for i in char.owner.opponent.board.values():
+        if i != None:
+            i.take_damage(4, source=char)
+
+Wretched_Mummy = Character(
+    name = 'Wretched Mummy',
+    atk=4,
+    hlth=1,
+    alignment='Evil',
+    lvl=5,
+    type=['Monster'],
+    abils=[
+        Last_Breath_Effect(
+            name='Wretched Mummy Death Effect',
+            effect_func = Wretched_Mummy_Last_Breath_Effect
+        )
+    ]
+)
+
 # Ashwood Elm
 # Bearstein
 # Doombreath
+
 # Echowood
 # Good Boy
+def Good_Boy_Last_Breath_Effect(char):
+    for i in char.owner.board.values():
+        if i != None and i.get_alignment() == 'Good':
+            i.change_eob_atk_mod(char.atk() * (1 + char.upgraded))
+            i.change_eob_hlth_mod(char.hlth() * (1 + char.upgraded))
+
+Good_Boy = Character(
+    name = 'Good Boy',
+    atk=2,
+    hlth=2,
+    alignment='Good',
+    lvl=6,
+    type=['Animal'],
+    abils=[
+        Last_Breath_Effect(
+            name='Good Boy Death Effect',
+            effect_func = Good_Boy_Last_Breath_Effect
+        )
+    ]
+)
+
 # Great Pumpkin King
+def Great_Pumpkin_King_Last_Breath_Effect(char):
+    # figure out order chars will spawn based on pumpkin position
+    start_pos = char.position
+    if start_pos == 1:
+        order = [2,3,4,5,6,7,1]
+    if start_pos == 2:
+        order = [3,1,4,5,6,7,2]
+    if start_pos == 3:
+        order = [4,2,1,6,7,5,3]
+    if start_pos == 4:
+        order = [3,2,1,7,6,5,4]
+    if start_pos == 5:
+        order = [6,7,1,2,3,4,5]
+    if start_pos == 6:
+        order = [5,7,2,3,4,1,6]
+    if start_pos == 7:
+        order = [5,6,4,3,2,1,7]
+
+    # note dead evil chars and their levels
+    evil_dead_chars = [i for i in char.owner.chars_dead if i.get_alignment()=='Evil']
+    lvls = [i.lvl-1 for i in evil_dead_chars if i.lvl>=3]
+    lvls.sort()
+
+    # note spaces that are empty
+    empty_spaces = [i for i in char.owner.board.keys() if char.owner.board[i] == None]
+    empty_spaces.append(char.position)
+    summon_order = []
+    for i in order:
+        if i in empty_spaces:
+            summon_order.append(i)
+
+    # pick a random character to summon for every dead char
+    for pos in summon_order:
+        if lvls != []:
+            get_lvl = lvls.pop(-1)
+            elig_pool = [i for i in char.game.char_pool if i.get_alignment()=='Evil' and
+                i.lvl == get_lvl]
+            selected = random.choice(elig_pool)
+            copy = selected.create_copy(char.owner, 'Great Pumpkin King summon')
+            copy.token = True
+            if char.upgraded:
+                copy.upgraded = True
+            copy.add_to_board(char.owner, pos)
+            if char.owner.game.verbose_lvl>=3:
+                print(char.owner, 'summons', copy)
+
+Great_Pumpkin_King = Character(
+    name = 'Great Pumpkin King',
+    atk=5,
+    hlth=5,
+    alignment='Evil',
+    lvl=6,
+    type=['Monster'],
+    abils=[
+        Last_Breath_Effect(
+            name='Great Pumpkin King Death Effect',
+            effect_func = Great_Pumpkin_King_Last_Breath_Effect
+        )
+    ]
+)
+
 # Grumblegore
 def Grumblegore_support_effect(char, source):
     char.change_atk_mod(10 * (1+ source.upgraded))
@@ -1150,6 +1681,28 @@ Grumblegore = Character(
 
 # Hercules
 # Jormungand
+def Jormungand_effect(source, slain, slain_attribs):
+    source.change_eob_atk_mod(20 * (1+source.upgraded))
+    source.change_eob_hlth_mod(20 * (1+source.upgraded))
+
+Jormungand = Character(
+    name='Jormungand',
+    atk=20,
+    hlth=20,
+    lvl=6,
+    type=['Monster'],
+    abils=[
+        Triggered_Effect(
+            name='Jormungand Slay effect',
+            effect_func = Jormungand_effect,
+            trigger = Trigger(
+                name = 'Jormungand Slay trigger',
+                type = 'slay'
+            )
+        )
+    ]
+)
+
 # Lordy
 # Robin Wood
 # Shoulder Faeries
@@ -1176,9 +1729,107 @@ Green_Knight = Character(
     ]
 )
 
+def The_Oni_King_effect(source):
+    source.change_eob_atk_mod(10 * (1+source.upgraded))
+    source.change_eob_hlth_mod(10 * (1+source.upgraded))
+
 # The Oni King
+The_Oni_King = Character(
+    name = 'The Oni King',
+    atk = 13,
+    hlth = 13,
+    alignment = 'Evil',
+    lvl = 6,
+    type = ['Monster'],
+    abils = [
+        Triggered_Effect(
+            name = 'The Oni King attack effect',
+            effect_func = The_Oni_King_effect,
+            trigger = Trigger(
+                name='The Oni King attack effect trigger',
+                type='attack',
+                condition = lambda self, char: 'Monster' in char.type
+            )
+        )
+    ]
+)
+
 # The Storm King
+The_Storm_King_Modifier = Modifier(
+    name = 'The Storm King Modifier',
+    atk_func = lambda char, atk, source: atk + char.owner.spells_cast_this_game*2 * (char.upgraded + 1),
+    hlth_func = lambda char, hlth, source: hlth + char.owner.spells_cast_this_game*2 * (char.upgraded + 1)
+)
+
+The_Storm_King = Character(
+    name='The Storm King',
+    atk=2,
+    hlth=2,
+    alignment='Neutral',
+    lvl=6,
+    type=['Mage'],
+    abils=[
+        Local_Static_Effect(
+            name = 'The Storm King Static Effect',
+            effect_func = lambda self: self.add_modifier(The_Storm_King_Modifier),
+            reverse_effect_func = lambda self: self.remove_modifier(The_Storm_King_Modifier),
+            modifier = The_Storm_King_Modifier
+        )
+    ]
+)
+
+
 # Three Big Pigs
+Evil_Pig = Character(
+    name = 'Evil Pig',
+    atk=5,
+    hlth=5,
+    alignment='Evil',
+    lvl=1,
+    type=['Animal'],
+    token = True
+)
+
+Evil_Pig_upgr = Character(
+    name = 'Evil Pig from upgraded',
+    atk=10,
+    hlth=10,
+    lvl=1,
+    alignment='Evil',
+    type=['Animal'],
+    token = True
+)
+
+def Three_Big_Pigs_Last_Breath_Effect(char):
+    if char.upgraded:
+        char.owner.multi_spawn(Evil_Pig_upgr, 3, char.position, char.upgraded)
+    else:
+        char.owner.multi_spawn(Evil_Pig, 3, char.position, char.upgraded)
+
+
+Three_Big_Pigs = Character(
+    name = 'Three Big Pigs',
+    atk=15,
+    hlth=15,
+    alignment='Evil',
+    lvl=6,
+    type=['Animal'],
+    abils=[
+        Last_Breath_Effect(
+            name='Three Big Pigs Death Effect',
+            effect_func = Three_Big_Pigs_Last_Breath_Effect
+        )
+    ]
+)
+
+Pigomorph_Pig = Character(
+        name = 'Pigomorph Pig',
+        atk=10,
+        hlth=10,
+        lvl=1,
+        type=['Animal'],
+        token = True
+)
 
 objs=deepcopy(list(locals().keys()))
 master_char_list=[]

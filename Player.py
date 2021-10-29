@@ -1,11 +1,13 @@
 from Effects import *
 from Heroes import *
+from c_Treasure import Treasure
 import itertools
 import copy
 import random
 from Spells import *
 from Characters import *
 import pandas as pd
+from datetime import datetime
 
 class Player:
     def __init__(self, name:str, logic=None):
@@ -48,6 +50,8 @@ class Player:
         self.spells_in_shop = [True]
         # track last combat results
         self.last_combat = 'draw'
+        # tracking spells cast this game for storm king
+        self.spells_cast_this_game = 0
 
     def choose_hero(self, choices):
         # force a hero for testing
@@ -72,6 +76,7 @@ class Player:
             self.roll_partial_shop()
 
         self.check_for_triggers('start of turn')
+        self.check_for_upgrades()
 
         # reset gold
         if any([i.name=='Piggie Bank' for i in self.treasures]):
@@ -83,6 +88,7 @@ class Player:
         self.next_turn_addl_gold = 0
         self.spell_played_this_turn = False
         self.chars_dead = []
+
 
     def do_shop_phase(self):
 
@@ -102,7 +108,7 @@ class Player:
             for eff in self.effects:
                 if isinstance(eff, Shop_Effect):
                     eff.apply_effect(i)
-            i.zone = 'shop'
+            i.set_zone('shop')
             self.shop.append(i)
         self.next_shop = []
 
@@ -217,63 +223,119 @@ class Player:
         # code to force a treasure to be discarded for testing purposes
         # if any([i.name=="Fool's Gold" for i in self.treasures]):
         #     self.discard_treasure([i for i in self.treasures if i.name == "Fool's Gold"][0])
-        #     import pdb; pdb.set_trace()
-
         self.gain_exp()
         self.check_for_triggers('end of turn')
 
         # remove all EOB modifiers from every character
+        revert_transform = []
         for i in self.hand:
             i.scrub_buffs(eob_only=True)
+            if i.eob_revert_char != None:
+                revert_transform.append(i)
+
+        for i in revert_transform:
+            i.transform(i.eob_revert_char, temp_reversion = True,
+                preserve_mods = False)
+
+        assert all([i.token == False for i in self.hand])
 
         for i in self.effects:
-            if isinstance(i, Triggered_Effect) and i.eob:
-                i.remove_effect(self)
+            if isinstance(i, Triggered_Effect):
+                # currently only used by Fancy Pants
+                i.activated_this_turn = False
+                if i.eob:
+                    i.remove_effect(self)
 
         if self.start_turn_gold<12:
             self.start_turn_gold += 1
 
         self.to_hand_this_turn=[]
 
+        self.check_for_upgrades()
+
         #=================Treasure related functions==============
-    def select_treasure(self,lvl):
+    def select_treasure(self,lvl, max_lim = 3):
+        '''
+            function for player to select a treasure to gain
+            lvl - level of treasure to select
+            max_lim - limit of number of treasures player can have. Only deviates from
+                 3 when an effect will discard a treasure later.
+        '''
         # check to see if there's any modifiers to the treasure level present
         lvl = self.check_treasure_level(lvl)
         if lvl > 7:
             lvl = 7
 
-        treasures = [i for i in self.game.treasures if i.lvl == lvl and i not in
-            self.treasures and i not in self.obtained_treasures]
+        # option to select treasures from any level to make it easier to test treasures
+        if self.game.treasure_test:
+            treasures = [i for i in self.game.treasures if i not in
+                self.treasures and i not in self.obtained_treasures]
+        else:
+            treasures = [i for i in self.game.treasures if i.lvl == lvl and i not in
+                self.treasures and i not in self.obtained_treasures]
         choices = random.sample(treasures, 3)
         choice = self.input_choose(choices,label='treasure select')
         #choice = [i for i in self.game.treasures if i.name == 'Sword of Fire and Ice'][0]
         if self.game.verbose_lvl>=2:
             print(self, 'gains', choice)
-        assert len(self.treasures)<=3
-        if len(self.treasures)==3:
+        assert len(self.treasures)<=max_lim
+        if len(self.treasures)==max_lim:
             remove_choice = self.input_choose(self.treasures, label='treasure remove')
             if self.game.verbose_lvl>=2:
                 print(self, 'discards', remove_choice)
             self.discard_treasure(remove_choice)
 
         # code to force a treasure to be taken for testing purposes
-        # if lvl == 2 and all([i.name!="Fool's Gold" for i in self.treasures]):
-        #     choice = [i for i in self.game.treasures if i.name == "Fool's Gold"][0]
-        self.gain_treasure(choice)
+        if lvl == 2 and all([i.name!="Mimic" for i in self.treasures]) and \
+            len(self.treasures)<=1:
+            choice = [i for i in self.game.treasures if i.name == "Mimic"][0]
+            self.gain_treasure(choice)
+            #choice = [i for i in self.game.treasures if i.name == "Locked Chest"][0]
+            choice = random.choice([i for i in self.game.treasures])
+            self.gain_treasure(choice)
+
+        else:
+            self.gain_treasure(choice)
 
     def gain_treasure(self, treasure):
+
+        '''
+        function for player to gain treasure
+        treasure - treasure object to gain
+        '''
+
         treasure_copy = treasure.create_copy()
         self.treasures.append(treasure_copy)
         self.obtained_treasures.append(treasure)
         treasure_copy.owner = self
+        treasure_copy.game = self.game
         if treasure_copy.abils!=None:
+
+            # check for any treasure multipler effects already on the player
+            for abil in self.effects:
+                if isinstance(abil, Treasure_Effect_Multiplier):
+                    for eff in treasure_copy.abils:
+                        if abil not in eff.effects \
+                            and isinstance(eff.source, Treasure) and abil.condition(eff.source):
+                            eff.effects.append(abil)
+                            abil.apply_effect(eff)
+
+            # add treasure effects
             for abil in treasure_copy.abils:
                 if hasattr(abil, 'trigger'):
                     self.triggers.append(abil.trigger)
+                elif isinstance(abil, Treasure_Effect_Multiplier):
+                    for eff in treasure_copy.owner.effects:
+                        if abil not in eff.effects and isinstance(eff, Treasure_Effect_Multiplier) == False \
+                        and isinstance(eff.source, Treasure) and abil.condition(eff.source):
+                            eff.effects.append(abil)
+                            abil.apply_effect(eff)
                 if isinstance(abil, Player_Effect):
                     abil.apply_effect(abil.source)
                 elif isinstance(abil, Effect):
                     self.effects.append(abil)
+
+
 
     def discard_treasure(self, treasure):
         assert treasure.owner == self
@@ -283,10 +345,19 @@ class Player:
                     abil.reverse_effect(abil.source)
                 elif isinstance(abil, Global_Static_Effect):
                     self.remove_effect(abil)
+                elif isinstance(abil, Treasure_Effect_Multiplier):
+                    for eff in treasure.owner.effects:
+                        if abil in eff.effects:
+                            eff.effects.remove(abil)
+                            abil.reverse_effect(eff)
+
                 if hasattr(abil, 'trigger'):
                     self.triggers.remove(abil.trigger)
 
+                self.effects.remove(abil)
+
         self.treasures.remove(treasure)
+        treasure.last_owner = self
         treasure.owner = None
 
     def check_for_upgrades(self):
@@ -310,7 +381,7 @@ class Player:
                 i.scrub_buffs(eob_only=False)
                 i.remove_from_hand(return_to_pool=False)
                 keep_copy.upgrade_copies.append(i)
-                i.zone = keep_copy.upgrade_copies
+                i.set_zone(keep_copy.upgrade_copies)
             keep_copy.upgraded=True
             treasure_lvl = keep_copy.lvl
             # hard coded blind mouse treasure increase
@@ -347,14 +418,12 @@ class Player:
             # if it's none, check the condition for the source of the trigger
             else:
                 condition_obj = i.source
-            # if i.type == type and type == 'target':
-            #     import pdb; pdb.set_trace()
             if type == 'global slay':
                 if i.type == type and i.condition(i, condition_obj, triggered_obj):
                     if self.game.verbose_lvl>=4:
                         print('triggering',i)
                     i.source.trigger_effect(effect_kwargs)
-            elif type == 'die':
+            elif type in ['die', 'survive damage']:
                 if i.type == type and i.condition(i, condition_obj):
                     if self.game.verbose_lvl>=4:
                         print('triggering',i)
@@ -389,6 +458,19 @@ class Player:
                         if eff in char.effects and eff.condition(char)==False:
                             char.effects.remove(eff)
                             eff.reverse_effect(char)
+
+            # if isinstance(eff, Treasure_Effect_Multiplier):
+            #     for plyr_eff in self.effects:
+            #         if eff not in plyr_eff.effects and isinstance(plyr_eff, Treasure_Effect_Multiplier) == False \
+            #             and isinstance(plyr_eff.source, Treasure) and eff.condition(plyr_eff.source):
+            #                 plyr_eff.effects.append(eff)
+            #                 plyr_eff.multiplier = eff.apply_effect(plyr_eff.multiplier)
+            #
+            #         if eff in plyr_eff.effects and isinstance(plyr_eff, Treasure_Effect_Multiplier) == False \
+            #             and isinstance(plyr_eff.source, Treasure) and eff.condition(plyr_eff.source)==False:
+            #                 plyr_eff.effects.remove(eff)
+            #                 plyr_eff.multiplier = eff.reverse_effect(plyr_eff.multiplier)
+
 
     # remove an effect that's leaving
     def remove_effect(self, effect):
@@ -460,19 +542,19 @@ class Player:
     # function for finding where to spawn the next token
     def find_next_spawn_position(self, start_pos):
         if start_pos == 1:
-            order = [2,3,4,5,6,7]
+            order = [2,3,4,5,6,7,1]
         if start_pos == 2:
-            order = [3,1,4,5,6,7]
+            order = [3,1,4,5,6,7,2]
         if start_pos == 3:
-            order = [4,2,1,6,7,5]
+            order = [4,2,1,6,7,5,3]
         if start_pos == 4:
-            order = [3,2,1,7,6,5]
+            order = [3,2,1,7,6,5,4]
         if start_pos == 5:
-            order = [6,7,1,2,3,4]
+            order = [6,7,1,2,3,4,5]
         if start_pos == 6:
-            order = [5,7,2,3,4,1]
+            order = [5,7,2,3,4,1,6]
         if start_pos == 7:
-            order = [5,6,4,3,2,1]
+            order = [5,6,4,3,2,1,7]
 
         # depending on the position that the call started from,
         # go through the position order and find the first empty space
@@ -488,7 +570,10 @@ class Player:
     def life_loss(self, amt):
         self.life -= amt
         if self.game.verbose_lvl>=2:
-            print(self,'loses',amt,'life. Life total is now',self.life)
+            if self not in self.game.ghosts:
+                print(self,'loses',amt,'life. Life total is now',self.life)
+            else:
+                print(self,'loses',amt,'life.', self, 'is already a ghost.')
 
     def life_gain(self, amt):
         self.life += amt
@@ -498,10 +583,13 @@ class Player:
 
     # check if dead, if so remove self from game
     def check_for_death(self):
+        start = datetime.now()
         if self.life <= 0:
             if self.game.verbose_lvl>=1:
                 print(self, 'is out of the game')
             self.dead= True
+            if self.name == 'Player6':
+                import pdb; pdb.set_trace()
             for i in self.hand.copy():
                 owner = i.owner
 
@@ -513,8 +601,12 @@ class Player:
                 char_copy.add_to_hand(owner)
                 i.scrub_buffs()
                 i.owner = None
-            self.game.players.remove(self)
+            self.game.active_players.remove(self)
             self.game.ghosts.append(self)
+            end= datetime.now() - start
+            if end.microseconds> 100000:
+                print('unexpectedly long time to process death, '+ str(end) +
+                    ', check for deep copies being made')
 
     def check_spells_in_shop(self):
         return all(self.spells_in_shop)
@@ -561,6 +653,16 @@ class Player:
         else:
             choice=random.sample(choices,n)
         return(choice)
+
+    def display_status(self):
+        print(self)
+        print('Life:',self.life)
+        print('Level:',self.lvl,'Exp:',self.exp)
+        print('Hero:',self.hero)
+        print('Hand:',self.hand)
+        print('Board:',self.board)
+        print('Treasures:',self.treasures)
+        print('Shop:',self.shop)
 
     def __repr__(self):
         return self.name

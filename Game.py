@@ -10,11 +10,12 @@ import itertools
 import random
 
 class Game:
-    def __init__(self, verbose_lvl=3, seed=None):
+    def __init__(self, verbose_lvl=3, seed=None, treasure_test = False):
         self.char_pool=[]
         self.treasures = []
         self.turn_counter = 0
-        self.players=[]
+        self.active_players=[]
+        self.all_players=[]
         self.winner = None
         self.verbose_lvl = verbose_lvl
         self.ghosts = []
@@ -23,12 +24,14 @@ class Game:
         else:
             self.seed=random.randint(1,10000000000)
         random.seed(self.seed)
+        self.treasure_test = treasure_test
 
     # functions for start of the game.
     def start_game(self,players):
         # set up initial states
-        self.players=players
-        for p in self.players:
+        self.active_players=players
+        self.all_players=players
+        for p in self.active_players:
             p.game=self
         self.load_hero_list()
         self.load_char_pool()
@@ -48,7 +51,7 @@ class Game:
         self.available_heroes= master_hero_list.copy()
 
     def add_to_char_pool(self, char):
-        char.zone = 'pool'
+        char.set_zone('pool')
         self.char_pool.append(char)
 
 
@@ -82,7 +85,7 @@ class Game:
     def load_treasures(self):
         # master_treasure_list is from Treasures.py
         self.treasures=master_treasure_list
-
+        
     def load_spells(self):
         # master_spell_list is from Treasures.py
         self.spells=master_spell_list
@@ -90,7 +93,7 @@ class Game:
     # each player selects one of four heros
     def select_heroes_phase(self):
         choices = {}
-        for p in self.players:
+        for p in self.active_players:
             choices[p] = random.sample(self.available_heroes, 4)
             for h in choices[p]:
                 self.available_heroes.remove(h)
@@ -111,37 +114,39 @@ class Game:
         if self.verbose_lvl>=1:
             print('Round', self.turn_counter, 'starts')
 
-        for p in self.players:
+        for p in self.active_players:
             p.start_of_turn_effects()
 
     def init_shop_phase(self):
         if self.verbose_lvl>=1:
             print('Entering shop phase')
-        for p in self.players:
+        for p in self.active_players:
             p.do_shop_phase()
 
     def init_battle_phase(self):
         if self.verbose_lvl>=1:
             print('Entering combat')
-        for p in self.players:
+        for p in self.active_players:
             p.deploy_for_battle()
         self.pair_opponents()
 
     def end_of_turn_effects(self):
-        for p in self.players:
+        for p in self.active_players:
             p.end_of_turn_effects()
             p.check_for_death()
+        for p in self.ghosts:
+            p.end_of_turn_effects()
         self.check_for_winner()
 
     def check_for_winner(self):
-        if len(self.players)==1:
-            self.winner=self.players[0]
+        if len(self.active_players)==1:
+            self.winner=self.active_players[0]
 
     # ========================Combat Resolution functions======================
     # function to pair opponents
     # TODO: currently randomly selects opponents. Need to adjust to match SBB algo
     def pair_opponents(self):
-        queue = self.players.copy()
+        queue = self.active_players.copy()
         self.combat_pairs={}
         if len(queue) % 2 != 0:
             queue.append(self.ghosts[-1])
@@ -345,7 +350,7 @@ class Game:
         for i in shop:
             self.char_pool.remove(i)
             i.owner = player
-            i.zone= 'shop'
+            i.set_zone('shop')
         if player.check_spells_in_shop():
             shop = shop + random.sample(list(elig_spell_pool),1)
             assert len([i for i in shop if isinstance(i, Spell)])<=1
@@ -367,7 +372,7 @@ class Game:
         for i in addl_shop:
             self.char_pool.remove(i)
             i.owner = player
-            i.zone= 'shop'
+            i.set_zone('shop')
 
         if all([isinstance(i, Character) for i in player.shop]) and player.check_spells_in_shop():
             addl_shop = addl_shop + random.sample(list(elig_spell_pool),1)

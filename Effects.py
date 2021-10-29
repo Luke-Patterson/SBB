@@ -1,18 +1,27 @@
+from c_Treasure import Treasure
 
 class Effect:
     def __init__(self,name, effect_func=None, reverse_effect_func = None, condition = lambda x: True,
-        modifier = None):
+        modifier = None, once_per_turn=False, multi_ignore = False):
         self.name = name
         self.effect_func = effect_func
         self.reverse_effect_func = reverse_effect_func
         self.condition = condition
         self.source = None
         self.modifier = modifier
+        self.once_per_turn = once_per_turn
+        self.activated_this_turn = False
+        # how many times each effect will trigger
+        self.multiplier = 1
+        self.effects = []
+        # If a effect has no effect when multiplied, ignore multiplier changes
+        self.multi_ignore = multi_ignore
 
     def add_to_obj(self, obj):
         self.source = obj
         if self.modifier!=None:
             self.modifier.source = obj
+            self.modifier.source_abil = self
 
     def apply_effect(self, char):
         self.effect_func(char)
@@ -27,19 +36,39 @@ class Effect:
 # Effect is added to a player object's effect attribute
 class Treasure_Level_Mod(Effect):
     def __init__(self, name:str, effect_func=None, reverse_effect_func = None,
-        condition = lambda x: True, modifier = None):
-        super().__init__(name,effect_func, reverse_effect_func, condition, modifier)
+        condition = lambda x: True, modifier = None, multi_ignore=False):
+        super().__init__(name,effect_func, reverse_effect_func, condition, modifier
+            , multi_ignore= multi_ignore)
         self.type='Treasure Level Modifier'
 
     def apply_effect(self, base_lvl):
-        return self.effect_func(base_lvl)
+        for _ in range(self.multiplier):
+            base_lvl = self.effect_func(base_lvl)
+        return base_lvl
+
+
+class Treasure_Effect_Multiplier(Effect):
+    def __init__(self, name:str, effect_func=None, reverse_effect_func = None,
+        condition = lambda x: True, modifier = None, multi_ignore=False):
+        super().__init__(name,effect_func, reverse_effect_func, condition, modifier
+            , multi_ignore= multi_ignore)
+        self.type='Treasure Effect Multiplier'
+
+    def apply_effect(self, effect):
+        if effect.multi_ignore == False:
+            effect.multiplier += 1
+
+    def reverse_effect(self, effect):
+        if effect.multi_ignore == False:
+            effect.multiplier -= 1
 
 # Effect that affects a player
 # Effect is added to a player object's effect attribute
 class Player_Effect(Effect):
     def __init__(self, name:str, effect_func=None, reverse_effect_func = None,
-        condition = lambda x: True, modifier = None):
-        super().__init__(name,effect_func, reverse_effect_func, condition, modifier)
+        condition = lambda x: True, modifier = None, multi_ignore=False):
+        super().__init__(name,effect_func, reverse_effect_func, condition, modifier
+            , multi_ignore= multi_ignore)
         self.type='Hero Effect'
 
     def apply_effect(self, source):
@@ -54,12 +83,14 @@ class Player_Effect(Effect):
 # Effect is added to a character object's abil attribute
 class Support_Effect(Effect):
     def __init__(self, name:str, effect_func=None, reverse_effect_func = None,
-        condition = lambda x: True, modifier = None):
-        super().__init__(name,effect_func, reverse_effect_func, condition, modifier)
+        condition = lambda x: True, modifier = None, multi_ignore=False):
+        super().__init__(name,effect_func, reverse_effect_func, condition, modifier
+            , multi_ignore= multi_ignore)
         self.type='Support Effect'
 
     def apply_effect(self, char):
-        self.effect_func(char, self.source)
+        for _ in range(self.multiplier):
+            self.effect_func(char, self.source)
 
     def reverse_effect(self, char):
         self.reverse_effect_func(char, self.source)
@@ -68,31 +99,41 @@ class Support_Effect(Effect):
 # Effect is added to a character object's abil attribute
 class Last_Breath_Effect(Effect):
     def __init__(self, name:str, effect_func=None, reverse_effect_func = None,
-        condition = lambda x: True, modifier = None):
-        super().__init__(name,effect_func, reverse_effect_func, condition, modifier)
+        condition = lambda x: True, modifier = None, multi_ignore=False):
+        super().__init__(name,effect_func, reverse_effect_func, condition, modifier
+            , multi_ignore= multi_ignore)
         self.type='Death Effect'
 
     def apply_effect(self, char):
-        self.effect_func(char)
+        for _ in range(self.multiplier):
+            self.effect_func(char)
 
 # Effect that affects a character on purchase
 # Effect is added to a player's abil attribute
 class Purchase_Effect(Effect):
     def __init__(self, name:str, effect_func=None, reverse_effect_func = None,
-        condition = lambda x: True, modifier = None):
-        super().__init__(name,effect_func, reverse_effect_func, condition, modifier)
+        condition = lambda x: True, modifier = None, once_per_turn = False
+        , multi_ignore=False):
+        super().__init__(name,effect_func, reverse_effect_func, condition, modifier,
+            once_per_turn, multi_ignore= multi_ignore)
         self.type='Purchase Effect'
 
     def apply_effect(self, eff, char):
-        self.effect_func(char, eff)
+        if self.activated_this_turn == False:
+            for _ in range(self.multiplier):
+                self.effect_func(char, eff)
+
+        if self.once_per_turn:
+            self.activated_this_turn = True
 
 # Static effects that will only affect the character itself and are always
 # on regardless of zone
 # Effect is added to a character object's abil attribute
 class Local_Static_Effect(Effect):
     def __init__(self, name:str, effect_func=None, reverse_effect_func = None,
-        condition = lambda x: True, modifier = None):
-        super().__init__(name,effect_func, reverse_effect_func, condition, modifier)
+        condition = lambda x: True, modifier = None, multi_ignore=False):
+        super().__init__(name,effect_func, reverse_effect_func, condition, modifier
+            , multi_ignore= multi_ignore)
         self.type='Local Static Effect'
 
     def add_to_obj(self, obj):
@@ -109,8 +150,9 @@ class Local_Static_Effect(Effect):
 # Effect is added to both a character and player object's effect attribute
 class Global_Static_Effect(Effect):
     def __init__(self, name:str, effect_func=None, reverse_effect_func = None,
-        condition = lambda x: True, modifier = None):
-        super().__init__(name,effect_func, reverse_effect_func, condition, modifier)
+        condition = lambda x: True, modifier = None, multi_ignore=False):
+        super().__init__(name,effect_func, reverse_effect_func, condition, modifier
+            , multi_ignore= multi_ignore)
         self.type='Global Static Effect'
         self.source = None
 
@@ -126,8 +168,8 @@ class Global_Static_Effect(Effect):
 class Shop_Effect(Effect):
     def __init__(self, name:str, char_effect_func = None, char_reverse_effect_func = None,
             spell_effect_func = None, spell_reverse_effect_func=None,
-            condition = lambda x: True, modifier= None):
-        super().__init__(name, condition, modifier)
+            condition = lambda x: True, modifier= None, multi_ignore=False):
+        super().__init__(name, condition, modifier, multi_ignore= multi_ignore)
 
         self.effect_func = lambda x: print('wrong effect passed')
         self.reverse_effect_func = lambda x: print('wrong effect passed')
@@ -140,16 +182,18 @@ class Shop_Effect(Effect):
         self.spell_reverse_effect_func = spell_reverse_effect_func
 
     def apply_effect(self, obj):
-        if self.char_effect_func != None and obj.__class__.__name__=='Character' and self.condition(obj):
-            self.char_effect_func(obj)
-        if self.spell_effect_func != None and obj.__class__.__name__=='Spell' and self.condition(obj):
-            self.spell_effect_func(obj)
+        for _ in range(self.multiplier):
+            if self.char_effect_func != None and obj.__class__.__name__=='Character' and self.condition(obj):
+                self.char_effect_func(obj)
+            if self.spell_effect_func != None and obj.__class__.__name__=='Spell' and self.condition(obj):
+                self.spell_effect_func(obj)
 
     def reverse_effect(self, char):
-        if self.char_reverse_effect_func != None and obj.__class__.__name__=='Character':
-            self.char_reverse_effect_func(obj)
-        if self.spell_reverse_effect_func != None and obj.__class__.__name__=='Spell':
-            self.spell_reverse_effect_func(obj)
+        for _ in range(self.multiplier):
+            if self.char_reverse_effect_func != None and obj.__class__.__name__=='Character':
+                self.char_reverse_effect_func(obj)
+            if self.spell_reverse_effect_func != None and obj.__class__.__name__=='Spell':
+                self.spell_reverse_effect_func(obj)
 
 
 # effect that triggers on a certain condition.
@@ -157,8 +201,8 @@ class Shop_Effect(Effect):
 # depending on the type of trigger.
 class Triggered_Effect(Effect):
     def __init__(self, name:str, trigger, effect_func, condition = lambda obj: True,
-        counter = None, eob=False):
-        super().__init__(name, effect_func, condition = condition)
+        counter = None, eob=False, multi_ignore=False):
+        super().__init__(name, effect_func, condition = condition , multi_ignore=multi_ignore)
         self.trigger = trigger
         self.trigger.source = self
         self.effect_func = effect_func
@@ -166,13 +210,24 @@ class Triggered_Effect(Effect):
         self.condition = condition
         self.counter = counter
         self.eob = eob
+        self.activated_this_turn = False
 
     def trigger_effect(self, effect_kwargs= None):
-        if self.condition(self.source):
-            if effect_kwargs == None:
-                self.effect_func(self.source)
-            else:
-                self.effect_func(self.source, **effect_kwargs)
+        if self.counter == None or self.counter <= 0:
+            if self.condition(self.source):
+                for _ in range(self.multiplier):
+                    if effect_kwargs == None:
+                        self.effect_func(self.source)
+                    else:
+                        self.effect_func(self.source, **effect_kwargs)
+
+            # for treasures with counters, remove them when they hit zero
+            if self.counter != None and isinstance(self.source, Treasure) \
+                and self.source.owner != None:
+                self.source.owner.discard_treasure(self.source)
+
+        else:
+            self.counter -= 1
 
     def apply_effect(self, obj):
         self.source = obj
@@ -189,18 +244,21 @@ class Triggered_Effect(Effect):
 
 
 class Quest(Triggered_Effect):
-    def __init__(self, name:str, trigger, counter, effect_func = None):
-        super().__init__(name, trigger, effect_func)
+    def __init__(self, name:str, trigger, counter, effect_func = None, increment = 1
+        , multi_ignore=False):
+        super().__init__(name, trigger, effect_func , multi_ignore = multi_ignore)
         self.counter = counter
         self.counter_start_val = counter
         self.source = None
+        self.increment = increment
 
     def finish_effect(self):
         self.source.upgraded = True
         self.source.owner.select_treasure(self.source.lvl)
 
-    def trigger_effect(self):
-        self.counter -= 1
+    # args added so the function can handle triggers with effect kwargs
+    def trigger_effect(self, *args, **kwargs):
+        self.counter -= self.increment
         if self.counter==0:
             self.finish_effect()
 
@@ -212,6 +270,7 @@ class Modifier:
         oth_reverse_func=None, eob = False):
         self.name = name
         self.source= None
+        self.source_abil = None
         self.atk_func = atk_func
         self.hlth_func = hlth_func
         self.oth_func = oth_func

@@ -8,6 +8,7 @@ from Effects import Modifier
 from Characters import Character
 from Characters import master_char_list
 from Characters import Cat_1_1
+from Characters import Pigomorph_Pig
 from copy import deepcopy
 import random
 
@@ -86,7 +87,8 @@ For_Glory = Spell(
 )
 
 def Genies_Wish_effect(spell):
-    elig_spells = [i for i in spell.owner.game.spells if i.target==None and i.name!="Genie's Wish"]
+    elig_spells = [i for i in spell.owner.game.spells if i.target==None and i.name!="Genie's Wish"
+        and i.spell_for_turn]
     selected = random.choice(elig_spells)
     selected.cast(spell.owner)
 
@@ -135,7 +137,7 @@ def Shard_of_the_Ice_Queen_effect(spell):
     selected = random.choice(elig_pool)
     selected.change_atk_mod(1)
     selected.change_hlth_mod(1)
-    spell.selected_target.permanent_transform(selected)
+    spell.selected_target.transform(selected)
 
 # Shard of the Ice Queen
 Shard_of_the_Ice_Queen = Spell(
@@ -370,37 +372,29 @@ Kidnap = Spell(
     effect = Kidnap_effect
 )
 
-# Luna's Grace
-Lunas_Grace_Modifier = Modifier(
-    name="Luna's Grace Modifier",
-    atk_func = lambda char, atk, source: atk + 3,
-    hlth_func = lambda char, hlth, source: hlth + 3,
-    eob = True
-)
+def Lunas_Grace_effect(spell):
+    spell.selected_target.change_eob_atk_mod(3)
+    spell.selected_target.change_eob_hlth_mod(3)
 
 
 Lunas_Grace = Spell(
     name="Luna's Grace",
     lvl=3,
     cost=1,
-    effect= lambda spell: spell.selected_target.add_modifier(Lunas_Grace_Modifier),
+    effect= Lunas_Grace_effect,
     target = Target(
         name ="Luna's Grace target"
     )
 )
 
-Potion_of_Heroism_Modifier = Modifier(
-    name="Potion of Heroism Modifier",
-    atk_func = lambda char, atk, source: atk + 2,
-    eob = True
-)
+# Mixawihizzle
 
 
 Potion_of_Heroism = Spell(
     name="Potion of Heroism",
     lvl=3,
     cost=1,
-    effect= lambda spell: spell.selected_target.add_modifier(Potion_of_Heroism_Modifier),
+    effect= lambda spell: spell.selected_target.change_eob_atk_mod(2),
     target = Target(
         name ="Potion of Heroism target"
     ),
@@ -432,7 +426,7 @@ Spinning_Gold = Spell(
 def True_Loves_Kiss_effect(spell):
     elig_pool = [i for i in spell.owner.game.char_pool if i.lvl==min(spell.selected_target.lvl+1,6)]
     selected = random.choice(elig_pool)
-    spell.selected_target.permanent_transform(selected)
+    spell.selected_target.transform(selected)
 
 True_Loves_Kiss = Spell(
     name = "True Love's Kiss",
@@ -631,7 +625,7 @@ def Masquerade_Ball_effect(spell):
     for i in shop:
         game.char_pool.remove(i)
         i.owner = spell.owner
-        i.zone= 'shop'
+        i.set_zone('shop')
 
     spell.owner.shop=shop
 
@@ -674,33 +668,25 @@ Merlins_Test = Spell(
     )
 )
 
-Queens_Grace_Modifier = Modifier(
-    name="Queen's Grace Modifier",
-    atk_func = lambda char, atk, source: atk + 7,
-    hlth_func = lambda char, hlth, source: hlth + 7,
-    eob = True
-)
+def Queens_Grace_effect(spell):
+    spell.selected_target.change_eob_atk_mod(7)
+    spell.selected_target.change_eob_hlth_mod(7)
 
 Queens_Grace = Spell(
     name="Queen's Grace",
     lvl=4,
     cost=2,
-    effect = lambda spell: spell.selected_target.add_modifier(Queens_Grace_Modifier),
+    effect = Queens_Grace_effect,
     target = Target(
         name ="Queen's Grace target",
         condition = lambda char: 'Prince' in char.type or 'Princess' in char.type
     )
 )
 
-Ride_of_the_Valkyries_Modifier = Modifier(
-    name="Ride of the Valkyries Modifier",
-    atk_func = lambda char, atk, source: atk + 2,
-    eob = True
-)
 
 def Ride_of_the_Valkyries_effect(spell):
     for i in spell.owner.hand:
-        i.add_modifier(Ride_of_the_Valkyries_Modifier)
+        i.change_eob_atk_mod(3)
 
 Ride_of_the_Valkyries = Spell(
     name= "Ride of the Valkyries",
@@ -769,16 +755,8 @@ Lucky_Coin = Spell(
 def Poison_Apple_dmg_effect(source):
     if any([i !=None for i in source.opponent.board.values()]):
         selected = random.choice([i for i in source.opponent.board.values() if i != None])
-        hlth_mod = selected.hlth() - 1
-
-        # this modifier is slightly different in that its generated within the function
-        Poison_Apple_Modifier = Modifier(
-            name="Poison Apple Modifier",
-            hlth_func = lambda char, hlth, source: hlth - hlth_mod,
-            eob = True
-        )
-
-        selected.add_modifier(Poison_Apple_Modifier)
+        hlth_mod = (selected.hlth() - 1) * -1
+        selected.change_eob_hlth_mod(hlth_mod)
 
 def Poison_Apple_effect(spell):
     effect=Triggered_Effect(
@@ -801,16 +779,8 @@ Poison_Apple = Spell(
 def Shrivel_dmg_effect(source):
     if any([i !=None for i in source.opponent.board.values()]):
         selected = random.choice([i for i in source.opponent.board.values() if i != None])
-
-        # this modifier is slightly different in that its generated within the function
-        Shrivel_Modifier = Modifier(
-            name="Shrivel Modifier",
-            hlth_func = lambda char, hlth, source: hlth - 12,
-            atk_func = lambda char, atk, source: atk - 12,
-            eob = True
-        )
-
-        selected.add_modifier(Shrivel_Modifier)
+        selected.change_eob_atk_mod(-12)
+        selected.change_eob_hlth_mod(-12)
 
 
 def Shrivel_effect(spell):
@@ -877,14 +847,8 @@ Evil_Twin = Spell(
 def Fog_begin_combat_effect(source):
     for i in source.opponent.board.values():
         if i!= None and i.ranged:
-            atk_mod = round(i.atk() / 2)
-
-            Fog_Modifier = Modifier(
-                name="Fog Modifier",
-                atk_func = lambda char, atk, source: atk - atk_mod,
-                eob = True
-            )
-            i.add_modifier(Fog_Modifier)
+            atk_mod = round(i.atk() / 2) * -1
+            i.change_eob_atk_mod(atk_mod)
 
 def Fog_effect(spell):
     effect=Triggered_Effect(
@@ -947,7 +911,29 @@ Knighthood = Spell(
 )
 
 # Pigomorph
+def Pigomorph_transform_effect(source):
+    if any([i !=None for i in source.opponent.board.values()]):
+        selected = random.choice([i for i in source.opponent.board.values() if i != None])
+        token = Pigomorph_Pig.create_copy(source.opponent, 'Pigomorph attack effect')
+        selected.transform(token, preserve_mods = False, temporary = True)
 
+def Pigomorph_effect(spell):
+    effect=Triggered_Effect(
+        name = 'Pigomorph triggered effect',
+        effect_func = Pigomorph_transform_effect,
+        trigger = Trigger(
+            name='Pigomorph Effect trigger',
+            type='start of combat'
+        )
+    )
+    effect.apply_effect(spell.owner)
+
+Pigomorph = Spell(
+    name='Pigomorph',
+    lvl =6,
+    cost=5,
+    effect= Pigomorph_effect
+)
 
 def Smite_dmg_effect(source):
     if any([i !=None for i in source.opponent.board.values()]):

@@ -18,7 +18,10 @@ class Character:
 
         self.dmg_taken = 0
         self.abils=abils
-        self.lvl=lvl
+        if token:
+            self.lvl = 1
+        else:
+            self.lvl=lvl
         self.alignment=alignment
         self.alignment_mod = []
         self.base_cost = lvl
@@ -52,20 +55,26 @@ class Character:
             self.inshop=inshop
         # attribute to track origin of character object
         self.origin = 'original'
+        # track if character is to transform back into another character at the
+        # end of the battle
+        self.eob_revert_char = None
+        # target that character is attacking
+        self.atk_target = None
 
     def purchase(self, player):
         assert self.owner != None
         if self.game.verbose_lvl>=2:
             print(self.owner, 'purchases', self)
         player.shop.remove(self)
-        # see if there are any effects to apply on purchase
-        for eff in player.effects:
-            if isinstance(eff, Purchase_Effect) and eff.condition(self):
-                eff.apply_effect(eff, self)
 
         self.owner.check_for_triggers('purchase', triggering_obj=self)
 
         self.add_to_hand(player)
+
+        # see if there are any effects to apply on purchase
+        for eff in player.effects:
+            if isinstance(eff, Purchase_Effect) and eff.condition(self):
+                eff.apply_effect(eff, self)
 
         self.owner.current_gold -= self.current_cost
 
@@ -78,26 +87,25 @@ class Character:
         plain_copy - boolean indicating whether a copy has the buffs of the original
         inshop - boolean indicating whether when sold the copy will return to the
             character pool
+        assign_id - whether to assign id to the token. This is only not done
+            when making copies preserving what a blocker looks like before attacks.
+        game - if owner is None, passing a game object to use for master_char_list
         '''
+        master_obj = [i for i in owner.game.master_char_list if i.name==self.name][0]
+        copy = deepcopy(master_obj)
+        if plain_copy==False:
+            copy.atk_mod=self.atk_mod
+            copy.eob_atk_mod = self.eob_atk_mod
+            copy.hlth_mod=self.hlth_mod
+            copy.eob_hlth_mod = self.eob_hlth_mod
+            copy.upgraded = False
 
-        if self.token:
-            copy = deepcopy(self)
-        else:
-            master_obj = [i for i in owner.game.master_char_list if i.name==self.name][0]
-            copy = deepcopy(master_obj)
-            if plain_copy==False:
-                copy.atk_mod=self.atk_mod
-                copy.eob_atk_mod = self.eob_atk_mod
-                copy.hlth_mod=self.hlth_mod
-                copy.eob_hlth_mod = self.eob_hlth_mod
-                copy.upgraded = False
-
-        copy.owner = owner
         copy.origin = origin
+        copy.inshop=inshop
+        copy.owner = owner
         copy.game = owner.game
         owner.game.assign_id(copy)
         copy.game.char_universe.append(copy)
-        copy.inshop=inshop
 
         return copy
 
@@ -110,52 +118,87 @@ class Character:
             raise "too many objects in owner's hand"
         # go away after this function is finished
         elif len(player.hand)>=11 and store_in_shop and transforming==False:
+            if self.game.verbose_lvl>=3:
+                print('Note: too many objects in hand, storing', self, 'in next shop')
             self.owner = player
-            self.zone = 'shop'
+            self.set_zone('shop')
             self.current_cost= 0
             player.next_shop.append(self)
 
         elif len(player.hand)>=12 and store_in_shop and transforming:
-                self.owner = player
-                self.zone = 'shop'
-                self.current_cost= 0
-                player.next_shop.append(self)
+            if self.game.verbose_lvl>=3:
+                print('Note: too many objects in hand, storing', self, 'in next shop')
+            self.owner = player
+            self.set_zone('shop')
+            self.current_cost= 0
+            player.next_shop.append(self)
 
         else:
             self.owner = player
-            self.zone = self.owner.hand
+            self.set_zone(self.owner.hand)
             self.owner.hand.append(self)
             self.owner.to_hand_this_turn.append(self)
             # add any triggers that are in any of the abilities of the char
             for i in self.abils:
+                #if hasattr(i, 'trigger') and i.trigger.battle_trigger==False:
                 if hasattr(i, 'trigger'):
                     self.owner.triggers.append(i.trigger)
 
                 if isinstance(i, Player_Effect):
                     i.apply_effect(source=i.source)
 
-    def permanent_transform(self, trans_char):
-        if trans_char.inshop:
+    def transform(self, trans_char, preserve_mods =True, temporary = False, temp_reversion = False):
+        '''
+        function to transform one character into another
+        params:
+        trans_char - the character to be transformed into
+        preserve_mods - whether to carry over upgrades and atk/hlth mods from orig char
+        temporary - whether this transformation is only until end of battle or not
+        temp_reversion - whether this transformation is a function call that's
+            reverting a temporary transformation
+        '''
+        if trans_char.inshop and temp_reversion == False:
             self.game.char_pool.remove(trans_char)
-        trans_char.add_to_hand(self.owner, transforming = True, store_in_shop=True)
+
+        if trans_char.token:
+            trans_char.owner = self.owner
+        else:
+            trans_char.add_to_hand(self.owner, transforming = True, store_in_shop=True)
+
         trans_char.game = self.game
         if self.game.verbose_lvl>=3:
-            print(self, 'transforms into', trans_char)
+            if temporary == False:
+                print(self, 'transforms into', trans_char)
+            else:
+                print(self, 'temporarily transforms into', trans_char)
 
         if self.position != None:
             position = self.position
             self.remove_from_board()
             trans_char.add_to_board(self.owner, position)
 
-        if self.upgraded:
-            trans_char.upgraded = True
-        trans_char.atk_mod = self.atk_mod
-        trans_char.hlth_mod = self.hlth_mod
-        trans_char.eob_atk_mod = self.eob_atk_mod
-        trans_char.eob_hlth_mod = self.eob_hlth_mod
+        if preserve_mods:
+            if self.upgraded:
+                trans_char.upgraded = True
+            trans_char.atk_mod = self.atk_mod
+            trans_char.hlth_mod = self.hlth_mod
+            trans_char.eob_atk_mod = self.eob_atk_mod
+            trans_char.eob_hlth_mod = self.eob_hlth_mod
 
-        if self.token == False:
-            self.remove_from_hand()
+        if self in self.owner.hand:
+            if temporary:
+                # if this is just a temp tranformation, don't return to the char pool
+                self.remove_from_hand(return_to_pool=False)
+            else:
+                self.remove_from_hand()
+
+        if temporary and (self.token == False):
+            # if this char already has a character its transforming back to,
+            # transfer that char over
+            if self.eob_revert_char !=None:
+                trans_char.eob_revert_char = self.eob_revert_char
+            else:
+                trans_char.eob_revert_char = self
 
     def add_to_board(self, plyr, position):
         if self.token:
@@ -254,7 +297,8 @@ class Character:
         self.scrub_buffs(eob_only=False)
         self.last_owner = self.owner
         self.owner = None
-        self.zone = 'pool'
+        self.set_zone('pool')
+
 
     def get_cost(self):
         return self.current_cost
@@ -289,7 +333,7 @@ class Character:
             atk = self.base_atk + self.atk_mod + self.eob_atk_mod
         for i in self.modifiers:
             if i.atk_func!=None:
-                atk = i.atk_func(self, atk, source=i.source)
+                atk = i.atk_func(self, atk, source=i.source) # * i.source_abil.multiplier
         return atk
 
     def hlth(self):
@@ -299,7 +343,7 @@ class Character:
             hlth = self.base_hlth + self.hlth_mod + + self.eob_hlth_mod
         for i in self.modifiers:
             if i.hlth_func!=None:
-                hlth = i.hlth_func(self, hlth, source=i.source)
+                hlth = i.hlth_func(self, hlth, source=i.source) # * i.source_abil.multiplier
         return hlth
 
     def get_alignment(self):
@@ -313,6 +357,7 @@ class Character:
         # amt is the amount of damage taken
         # source is the object that's dealing damage
         # attacking parameter is whether the source is attacking or not
+        # function returns whether or not the target was slain
 
         assert amt > 0, '0 or less damage being dealt'
         self.dmg_taken += amt
@@ -320,17 +365,12 @@ class Character:
             print(self, 'takes',amt,'damage.',self.dmg_taken,'taken total.')
         if self.dmg_taken >= self.hlth():
             self.dies()
-            if attacking== True and isinstance(source, Character):
-                source.owner.check_for_triggers('global slay',
-                    triggering_obj = source, triggered_obj = self,
-                    effect_kwargs = {'slain':self, 'slayer':source})
-
-                for abil in source.abils:
-                    if isinstance(abil, Triggered_Effect) and abil.trigger.type=='slay':
-                        abil.trigger_effect()
+            return True
 
         else:
-            self.owner.check_for_triggers('survive damage', triggering_obj = self)
+            self.owner.check_for_triggers('survive damage', triggering_obj = self,
+                effect_kwargs={'damaged_char':self})
+            return False
             # for abil in self.abils:
             #     if isinstance(abil, Triggered_Effect) and abil.trigger.type=='survive damage':
             #         abil.trigger_effect()
@@ -357,9 +397,9 @@ class Character:
         # I think this is only the case for when polywoggle is slaying while
         # also dying simulatenously
         # raise an exception if this is not the case so we can check it out
-        elif self.name != 'Polywoggle':
-            raise
-
+        # elif self.name != 'Polywoggle':
+        #     raise
+        # can die to mummy
 
 
 
@@ -368,15 +408,47 @@ class Character:
             # set owner now just for Humpty dying, which causes owner = None
             # prior to check effects statements
             owner = self.owner
-            target = self.select_target()
+            self.atk_target = self.select_target()
+            # preserve original attack target mods as it is before attacks, in case
+            # an ability needs to reference it after it dies. Currently this is only
+            # relevant for Southern_Siren's slay ability.
+            orig_attack_target_attribs = {
+                'atk_mod': self.atk_target.atk_mod,
+                'eob_atk_mod': self.atk_target.eob_atk_mod,
+                'hlth_mod': self.atk_target.hlth_mod,
+                'eob_hlth_mod': self.atk_target.eob_hlth_mod,
+                'upgraded': self.atk_target.upgraded
+            }
+
             if self.game.verbose_lvl>=2:
-                print(self, 'attacks',target)
+                print(self, 'attacks',self.atk_target)
             owner.check_for_triggers('attack',triggering_obj= self)
-            target.take_damage(self.atk(), source = self, attacking = True)
-            if self.ranged==False and target.atk()>0:
-                self.take_damage(target.atk(), source = target)
+
+            # take damage function will return boolean indicating whether target was slain
+            slay_result = self.atk_target.take_damage(self.atk(), source = self, attacking = True)
+
+            if self.ranged==False and self.atk_target.atk()>0:
+                self.take_damage(self.atk_target.atk(), source = self.atk_target)
+
+            if slay_result:
+                if self.owner == None:
+                    self.last_owner.check_for_triggers('global slay',
+                    triggering_obj = self, triggered_obj = self.atk_target,
+                    effect_kwargs = {'slain':self.atk_target, 'slayer':self})
+                else:
+                    self.owner.check_for_triggers('global slay',
+                    triggering_obj = self, triggered_obj = self.atk_target,
+                    effect_kwargs = {'slain':self.atk_target, 'slayer':self})
+
+
+                for abil in self.abils:
+                    if isinstance(abil, Triggered_Effect) and abil.trigger.type=='slay':
+                        abil.trigger_effect(effect_kwargs={'slain':self.atk_target,
+                        'slain_attribs': orig_attack_target_attribs})
+
             owner.check_effects()
             owner.opponent.check_effects()
+            self.atk_target = None
 
     def scrub_buffs(self, eob_only = True):
 
@@ -443,6 +515,9 @@ class Character:
 
     def change_eob_hlth_mod(self, amt):
         self.eob_hlth_mod += amt
+
+    def set_zone(self, zone):
+        self.zone = zone
 
     def __repr__(self):
         printed = self.name

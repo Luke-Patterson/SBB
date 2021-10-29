@@ -56,6 +56,7 @@ class Spell:
             self.effect(self)
 
         # clean up
+        self.owner.spells_cast_this_game += 1
         self.selected_target=None
         self.owner = None
 

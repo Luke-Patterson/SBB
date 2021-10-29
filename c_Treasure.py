@@ -5,6 +5,7 @@ class Treasure:
         self.name=name
         self.lvl=lvl
         self.abils=abils
+        self.last_owner = None
         if abils!=None:
             for i in self.abils:
                 i.add_to_obj(self)

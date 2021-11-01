@@ -245,7 +245,11 @@ class Character:
             # if due to death, apply death effects
             if death and self.position != None:
                 if isinstance(i, Last_Breath_Effect):
-                    i.apply_effect(self)
+                    for n in range(self.owner.last_breath_multiplier):
+                        if n == 0 or self.last_breath_multiplier_used_this_turn == False:
+                            i.apply_effect(self)
+                            if n != 0:
+                                self.last_breath_multiplier_used_this_turn = True
                 if self.owner == None:
                     self.last_owner.check_for_triggers('die', triggering_obj=self,
                     effect_kwargs={'dead_char':self})
@@ -334,7 +338,7 @@ class Character:
         for i in self.modifiers:
             if i.atk_func!=None:
                 atk = i.atk_func(self, atk, source=i.source) # * i.source_abil.multiplier
-        return atk
+        return max(atk,0)
 
     def hlth(self):
         if self.upgraded:
@@ -344,7 +348,7 @@ class Character:
         for i in self.modifiers:
             if i.hlth_func!=None:
                 hlth = i.hlth_func(self, hlth, source=i.source) # * i.source_abil.multiplier
-        return hlth
+        return max(hlth, 0)
 
     def get_alignment(self):
         if self.alignment_mod == []:

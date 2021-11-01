@@ -4,8 +4,8 @@ from datetime import datetime
 while True:
     start = datetime.now()
     #g=Game(verbose_lvl=0, treasure_test = True)
-    g=Game(verbose_lvl=4, treasure_test = True)
-    #g=Game(verbose_lvl=4, seed=3689350913, treasure_test = True)
+    #g=Game(verbose_lvl=4, treasure_test = True)
+    g=Game(verbose_lvl=4, seed=9432958880, treasure_test = True)
     Player1= Player('Player1')
     Player2= Player('Player2')
     Player3= Player('Player3')

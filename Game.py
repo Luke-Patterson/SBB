@@ -10,7 +10,7 @@ import itertools
 import random
 
 class Game:
-    def __init__(self, verbose_lvl=3, seed=None, treasure_test = False):
+    def __init__(self, verbose_lvl=3, seed=None, treasure_test = False, mimic_test=False):
         self.char_pool=[]
         self.treasures = []
         self.turn_counter = 0
@@ -24,7 +24,10 @@ class Game:
         else:
             self.seed=random.randint(1,10000000000)
         random.seed(self.seed)
+
+        # testing params
         self.treasure_test = treasure_test
+        self.mimic_test = mimic_test
 
     # functions for start of the game.
     def start_game(self,players):
@@ -85,7 +88,7 @@ class Game:
     def load_treasures(self):
         # master_treasure_list is from Treasures.py
         self.treasures=master_treasure_list
-        
+
     def load_spells(self):
         # master_spell_list is from Treasures.py
         self.spells=master_spell_list

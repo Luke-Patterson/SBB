@@ -276,7 +276,6 @@ def Lonely_Prince_effect(eff, player):
 def Lonely_Prince_reverse_effect(eff, player):
     rm_eff = [i for i in player.effects if i.source==eff.source
         and i.name=='Lonely Prince Purchase Effect']
-    assert len(rm_eff)>0
     player.effects.remove(rm_eff[0])
 
 Lonely_Prince = Character(
@@ -788,7 +787,6 @@ def Sleeping_Princess_effect(eff, player):
 def Sleeping_Princess_reverse_effect(eff, player):
     rm_eff = [i for i in player.effects if i.source==eff.source
         and i.name=='Sleeping Princess Target Effect']
-    assert len(rm_eff)>0
     player.effects.remove(rm_eff[0])
     player.triggers.remove(rm_eff[0].trigger)
 

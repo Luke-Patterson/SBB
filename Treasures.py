@@ -322,12 +322,18 @@ Ring_of_Regeneration = Treasure(
 
 # Secret Stash
 def Secret_Stash_trigger_effect(source):
+
+    # doing this because owner could be None if trigger effect is multiplied
     if source.owner != None:
-        source.owner.discard_treasure(source)
-    owner = source.last_owner
+        owner = source.owner
+    else:
+        owner = source.last_owner
+
     if owner.last_combat == 'lost':
         owner.next_turn_addl_gold += 3
         owner.life_gain(3)
+        if source.owner != None:
+            source.owner.discard_treasure(source)
 
 Secret_Stash = Treasure(
     name = 'Secret Stash',

@@ -24,10 +24,17 @@ class Effect:
             self.modifier.source_abil = self
 
     def apply_effect(self, char):
-        self.effect_func(char)
+        for _ in range(self.multipler):
+            self.effect_func(char)
 
     def reverse_effect(self, char):
         self.reverse_effect_func(char)
+
+    def increment_effect_multiplier(self):
+        self.multiplier += 1
+
+    def decrease_effect_multiplier(self):
+        self.multiplier -= 1
 
     def __repr__(self):
         return self.name
@@ -55,12 +62,12 @@ class Treasure_Effect_Multiplier(Effect):
         self.type='Treasure Effect Multiplier'
 
     def apply_effect(self, effect):
-        if effect.multi_ignore == False:
-            effect.multiplier += 1
+        if effect.multi_ignore == False and self.condition(effect):
+            effect.increment_effect_multiplier()
 
     def reverse_effect(self, effect):
-        if effect.multi_ignore == False:
-            effect.multiplier -= 1
+        if effect.multi_ignore == False and self.condition(effect):
+            effect.decrease_effect_multiplier()
 
 # Effect that affects a player
 # Effect is added to a player object's effect attribute
@@ -72,12 +79,29 @@ class Player_Effect(Effect):
         self.type='Hero Effect'
 
     def apply_effect(self, source):
-        self.effect_func(self, source.owner)
-        source.owner.effects.append(self)
+        for _ in range(self.multiplier):
+            self.effect_func(self, source.owner)
+            source.owner.effects.append(self)
 
     def reverse_effect(self, source):
-        self.reverse_effect_func(self, source.owner)
-        source.owner.effects.remove(self)
+        for _ in range(self.multiplier):
+            self.reverse_effect_func(self, source.owner)
+            source.owner.effects.remove(self)
+        assert self not in source.owner.effects
+
+    # for static effects, every time the multiplier changes, we have to
+    # check all objects in a player's possession and add/remove an instance of the
+    # effect accordingly
+    def increment_effect_multiplier(self):
+        self.multiplier += 1
+        self.effect_func(self, self.source.owner)
+        self.source.owner.effects.append(self)
+
+    def decrease_effect_multiplier(self):
+        self.multiplier -= 1
+        assert self.multiplier != 0
+        self.reverse_effect_func(self, self.source.owner)
+        self.source.owner.effects.remove(self)
 
 # Effect that provides a support bonus for supporting characters
 # Effect is added to a character object's abil attribute
@@ -92,8 +116,11 @@ class Support_Effect(Effect):
         for _ in range(self.multiplier):
             self.effect_func(char, self.source)
 
+    # can rely on multiplier for reverse as there's no way to alter support
+    # multipliers in combat, which is the only time support effects are reversed
     def reverse_effect(self, char):
-        self.reverse_effect_func(char, self.source)
+        for _ in range(self.multiplier):
+            self.reverse_effect_func(char, self.source)
 
 # Effect that occurs on a character's death
 # Effect is added to a character object's abil attribute
@@ -141,10 +168,27 @@ class Local_Static_Effect(Effect):
         self.apply_effect(obj)
 
     def apply_effect(self, selfchar):
-        self.effect_func(selfchar)
+        for _ in range(self.multiplier):
+            self.effect_func(selfchar)
 
     def reverse_effect(self, selfchar):
-        self.reverse_effect_func(selfchar)
+        for _ in range(self.multiplier):
+            self.reverse_effect_func(selfchar)
+
+    # for static effects, every time the multiplier changes, we have to
+    # check all objects in a player's possession and add/remove an instance of the
+    # effect accordingly
+    def increment_effect_multiplier(self):
+        self.multiplier += 1
+        self.effect_func(self)
+        self.source.owner.effects.append(self)
+
+    def decrease_effect_multiplier(self):
+        self.multiplier -= 1
+        assert self.multiplier != 0
+        self.reverse_effect_func(self)
+        self.source.owner.effects.remove(self)
+
 
 # Static effects that will affect all characters a player has (with conditions)
 # Effect is added to both a character and player object's effect attribute
@@ -157,10 +201,32 @@ class Global_Static_Effect(Effect):
         self.source = None
 
     def apply_effect(self, obj):
-        self.effect_func(obj)
+        for _ in range(self.multiplier):
+            self.effect_func(obj)
 
     def reverse_effect(self, obj):
-        self.reverse_effect_func(obj)
+        for _ in range(self.multiplier):
+            self.reverse_effect_func(obj)
+
+    # for static effects, every time the multiplier changes, we have to
+    # check all objects in a player's possession and add/remove an instance of the
+    # effect accordingly
+    def increment_effect_multiplier(self):
+        self.multiplier += 1
+        self.source.owner.effects.append(self)
+        for char in self.source.owner.hand:
+            if self in char.effects:
+                self.effect_func(char)
+
+
+    def decrease_effect_multiplier(self):
+        self.multiplier -= 1
+        assert self.multiplier != 0
+        self.source.owner.effects.remove(self)
+        for char in self.source.owner.hand:
+            if self in char.effects:
+                self.reverse_effect_func(char)
+
 
 # effect that modifies objects in a player's shop
 # Effect is added to a player's effect attribute. Character's costs/stats are
@@ -195,6 +261,31 @@ class Shop_Effect(Effect):
             if self.spell_reverse_effect_func != None and obj.__class__.__name__=='Spell':
                 self.spell_reverse_effect_func(obj)
 
+    # for static effects, every time the multiplier changes, we have to
+    # check all objects in a player's possession and add/remove an instance of the
+    # effect accordingly
+    def increment_effect_multiplier(self):
+        self.multiplier += 1
+        self.effect_func(self)
+        self.source.owner.effects.append(self)
+        for char in self.source.owner.shop:
+            if self in char.effects:
+                if self.char_effect_func != None and obj.__class__.__name__=='Character' and self.condition(obj):
+                    self.char_effect_func(obj)
+                if self.spell_effect_func != None and obj.__class__.__name__=='Spell' and self.condition(obj):
+                    self.spell_effect_func(obj)
+
+    def decrease_effect_multiplier(self):
+        self.multiplier -= 1
+        assert self.multiplier != 0
+        self.reverse_effect_func(self)
+        self.source.owner.effects.remove(self)
+        for char in self.source.owner.shop:
+            if self in char.effects:
+                if self.char_reverse_effect_func != None and obj.__class__.__name__=='Character':
+                    self.char_reverse_effect_func(obj)
+                if self.spell_reverse_effect_func != None and obj.__class__.__name__=='Spell':
+                    self.spell_reverse_effect_func(obj)
 
 # effect that triggers on a certain condition.
 # Effect is added to a player's effect attribute or character's abil attribute,
@@ -260,7 +351,8 @@ class Quest(Triggered_Effect):
     def trigger_effect(self, *args, **kwargs):
         self.counter -= self.increment
         if self.counter==0:
-            self.finish_effect()
+            for _ in range(self.multiplier):
+                self.finish_effect()
 
     def __repr__(self):
         return self.name

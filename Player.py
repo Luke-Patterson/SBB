@@ -52,6 +52,9 @@ class Player:
         self.last_combat = 'draw'
         # tracking spells cast this game for storm king
         self.spells_cast_this_game = 0
+        # multiplier for last breath effects:
+        self.last_breath_multiplier = 1
+        self.last_breath_multiplier_used_this_turn = False
 
     def choose_hero(self, choices):
         # force a hero for testing
@@ -88,7 +91,7 @@ class Player:
         self.next_turn_addl_gold = 0
         self.spell_played_this_turn = False
         self.chars_dead = []
-
+        self.last_breath_multiplier_used_this_turn = False
 
     def do_shop_phase(self):
 
@@ -286,13 +289,14 @@ class Player:
             self.discard_treasure(remove_choice)
 
         # code to force a treasure to be taken for testing purposes
-        if lvl == 2 and all([i.name!="Mimic" for i in self.treasures]) and \
-            len(self.treasures)<=1:
-            choice = [i for i in self.game.treasures if i.name == "Mimic"][0]
-            self.gain_treasure(choice)
-            #choice = [i for i in self.game.treasures if i.name == "Locked Chest"][0]
-            choice = random.choice([i for i in self.game.treasures])
-            self.gain_treasure(choice)
+        if self.game.mimic_test:
+            if lvl == 2 and all([i.name!="Mimic" for i in self.treasures]) and \
+                len(self.treasures)<=1:
+                choice = [i for i in self.game.treasures if i.name == "Mimic"][0]
+                self.gain_treasure(choice)
+                #choice = [i for i in self.game.treasures if i.name == "Fool's Gold"][0]
+                choice = random.choice([i for i in self.game.treasures])
+                self.gain_treasure(choice)
 
         else:
             self.gain_treasure(choice)
@@ -311,16 +315,7 @@ class Player:
         treasure_copy.game = self.game
         if treasure_copy.abils!=None:
 
-            # check for any treasure multipler effects already on the player
-            for abil in self.effects:
-                if isinstance(abil, Treasure_Effect_Multiplier):
-                    for eff in treasure_copy.abils:
-                        if abil not in eff.effects \
-                            and isinstance(eff.source, Treasure) and abil.condition(eff.source):
-                            eff.effects.append(abil)
-                            abil.apply_effect(eff)
-
-            # add treasure effects
+            # add treasure effects to player
             for abil in treasure_copy.abils:
                 if hasattr(abil, 'trigger'):
                     self.triggers.append(abil.trigger)
@@ -335,6 +330,14 @@ class Player:
                 elif isinstance(abil, Effect):
                     self.effects.append(abil)
 
+            # check for any treasure multipler effects already on the player
+            for abil in self.effects:
+                if isinstance(abil, Treasure_Effect_Multiplier):
+                    for eff in treasure_copy.abils:
+                        if abil not in eff.effects \
+                            and isinstance(eff.source, Treasure) and abil.condition(eff.source):
+                            eff.effects.append(abil)
+                            abil.apply_effect(eff)
 
 
     def discard_treasure(self, treasure):
@@ -588,8 +591,6 @@ class Player:
             if self.game.verbose_lvl>=1:
                 print(self, 'is out of the game')
             self.dead= True
-            if self.name == 'Player6':
-                import pdb; pdb.set_trace()
             for i in self.hand.copy():
                 owner = i.owner
 

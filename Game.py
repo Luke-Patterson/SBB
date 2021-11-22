@@ -19,6 +19,7 @@ class Game:
         self.winner = None
         self.verbose_lvl = verbose_lvl
         self.ghosts = []
+        self.available_heroes=[]
         if seed!=None:
             self.seed=seed
         else:
@@ -29,22 +30,53 @@ class Game:
         self.treasure_test = treasure_test
         self.mimic_test = mimic_test
 
+    def check_obj_nums(self):
+        print('Heroes:', len(self.available_heroes))
+        print('Spells:', len(self.spells))
+        print('Treasures:', len(self.treasures))
+        print('Characters:', len([i for i in self.char_universe if i.id==0]))
+
+    def check_for_missing_objs(self):
+        master_list = pd.read_excel('input/Story Book v63.4.xlsx', sheet_name = None)
+        master_treasures = master_list['Treasures']['Name']
+        master_chars = master_list['Characters']['Name']
+        master_spells = master_list['Spells']['Name']
+        master_heroes = master_list['Heroes']['Name']
+
+        engine_treasures = [i.name for i in self.treasures]
+        engine_chars = [i.name for i in self.char_universe if i.id==0]
+        engine_spells = [i.name for i in self.spells]
+        engine_heroes = [i.name for i in self.available_heroes]
+
+        print('Missing Heroes:', [i for i in master_heroes if i not in engine_heroes])
+        print('Missing Characters:', [i for i in master_chars if i not in engine_chars])
+        print('Missing Spells:', [i for i in master_spells if i not in engine_spells])
+        print('Missing Treasures:', [i for i in master_treasures if i not in engine_treasures])
+
     # functions for start of the game.
     def start_game(self,players):
         # set up initial states
         self.active_players=players
-        self.all_players=players
+        self.all_players=players.copy()
         for p in self.active_players:
             p.game=self
+            for opp in self.active_players:
+                if opp != p:
+                    p.opponent_history.append(opp)
         self.load_hero_list()
         self.load_char_pool()
         self.load_treasures()
         self.load_spells()
+        # self.check_obj_nums()
+        # self.check_for_missing_objs()
+        # import pdb; pdb.set_trace()
 
         # have players select heros
         self.select_heroes_phase()
 
         # start the turns
+        for p in self.active_players:
+            p.check_for_triggers('start of game')
         while self.winner==None:
             self.complete_turn()
         print(self.winner, 'is the winner!')
@@ -104,6 +136,8 @@ class Game:
             for h in unchosen_heroes:
                 self.available_heroes.append(h)
 
+            p.life = p.hero.life
+
 
     # functions to facilitate turns
     def complete_turn(self):
@@ -129,7 +163,7 @@ class Game:
     def init_battle_phase(self):
         if self.verbose_lvl>=1:
             print('Entering combat')
-        for p in self.active_players:
+        for p in self.all_players:
             p.deploy_for_battle()
         self.pair_opponents()
 
@@ -147,21 +181,25 @@ class Game:
 
     # ========================Combat Resolution functions======================
     # function to pair opponents
-    # TODO: currently randomly selects opponents. Need to adjust to match SBB algo
     def pair_opponents(self):
         queue = self.active_players.copy()
         self.combat_pairs={}
         if len(queue) % 2 != 0:
             queue.append(self.ghosts[-1])
         while queue != []:
-            plyrA = random.choice(queue)
+            plyrA = queue[0]
             queue.remove(plyrA)
-            plyrB = random.choice(queue)
+            plyrB = [i for i in plyrA.opponent_history if i in queue][0]
             queue.remove(plyrB)
             self.combat_pairs[plyrA] = plyrB
             self.combat_pairs[plyrB] = plyrA
             self.conduct_combat(plyrA, plyrB)
 
+            # note how many rounds it's been since each opponent was last played
+            plyrA.opponent_history.remove(plyrB)
+            plyrA.opponent_history.append(plyrB)
+            plyrB.opponent_history.remove(plyrA)
+            plyrB.opponent_history.append(plyrA)
 
     def end_combat(self,plyrA,plyrB):
         pA_loss = plyrA.check_for_empty_board()
@@ -202,17 +240,19 @@ class Game:
 
     def conduct_combat(self, plyrA, plyrB):
 
-
         # determine who goes first
         plyrs = [plyrA, plyrB]
-        if Hermes_Boots in plyrA.treasures and Hermes_Boots not in plyrB.treasures:
+        if any([i.name == "Hermes' Boots" for i  in plyrA.treasures]) \
+            and any([i.name == "Hermes' Boots" for i  in plyrB.treasures]) == False:
             first_plyr = plyrA
-        elif Hermes_Boots in plyrB.treasures and Hermes_Boots not in plyrA.treasures:
+        elif any([i.name == "Hermes' Boots" for i  in plyrB.treasures]) \
+            and any([i.name == "Hermes' Boots" for i  in plyrA.treasures]) == False:
             first_plyr = plyrB
         else:
             first_plyr = random.choice([plyrA, plyrB])
         plyrs.remove(first_plyr)
         sec_plyr = plyrs[0]
+        plyrs = [plyrA, plyrB]
         #act_plyr = first_plyr
 
 
@@ -228,6 +268,9 @@ class Game:
 
         for p in plyrs:
             p.check_for_triggers('start of combat')
+
+        for p in plyrs:
+            p.check_effects()
 
 
         # check to see if combat starts
@@ -328,17 +371,59 @@ class Game:
 
         self.end_combat(plyrA,plyrB)
 
-    # TODO: make this check for only 0 power creatures left as well.
     def check_for_end_of_combat(self, plyrA, plyrB):
         result = False
         if all([i==None for i in plyrA.board.values()]) or all([i==None for i in plyrB.board.values()]):
             result = True
         elif all([i.atk()<=0 for i in plyrA.board.values() if i!=None]) and all([i.atk()<=0 for i in plyrB.board.values() if i!=None]):
             result = True
+
+        # corner case for when soltek ancient is blocking daamge from a flying unit perpetually
+        else:
+            # check if one side has all 0 atk creatures
+            break_combat = False
+            for p in [plyrA, plyrB]:
+                if p == plyrA:
+                    opp_p = plyrB
+                else:
+                    opp_p = plyrA
+                all_zero = all([i.atk()<=0 for i in p.board.values() if i!=None])
+
+                # if so, verify they are all covered by soltek ancient and there's only flying units on the other side
+                if all_zero:
+
+                    def _soltak_ancient_check(char):
+                        check_pos_map = {5:[1,2], 6:[2,3],7:[3,4]}
+                        sresult = False
+                        if char.position in check_pos_map.keys():
+                            for i in check_pos_map[char.position]:
+                                if char.get_owner().board[i] != None and char.get_owner().board[i].name =='Soltak Ancient':
+                                    sresult = True
+                        return sresult
+
+                    soltek_covers = []
+                    all_soltek = False
+                    backrow = []
+                    for m in range(5,8):
+                        if p.board[m] != None:
+                            backrow.append(p.board[m])
+                            if _soltak_ancient_check(p.board[m]):
+                                soltek_covers.append(p.board[m])
+                    if soltek_covers == backrow and soltek_covers!=[]:
+                        all_soltek=True
+
+                        all_opp_flying = False
+                        if all([i.flying for i in opp_p.board.values() if i != None]):
+                            all_opp_flying = True
+                            break_combat = True
+
+            if break_combat:
+                result = True
+
         return result
 
     # functions for players to call generate a shop
-    def generate_shop(self, player):
+    def generate_shop(self, player, first_shop = False):
         # reminder: Masquerade Ball has a lot of similar code, modifications
         # here may need to be carried over there
         if self.turn_counter <= 2:
@@ -347,16 +432,49 @@ class Game:
             shop_size=4
         else:
             shop_size=5
-        elig_pool = [i for i in self.char_pool if i.lvl <= player.lvl]
+        if any([i.name == 'Staff of the Old Toad' for i in player.treasures]):
+            if player.lvl<=3:
+                elig_pool = [i for i in self.char_pool if i.lvl <= player.lvl and i.lvl>=3]
+            else:
+                elig_pool = [i for i in self.char_pool if i.lvl <= player.lvl and i.lvl>=4]
+        else:
+            elig_pool = [i for i in self.char_pool if i.lvl <= player.lvl]
+
+        # remove any quest characters that a player has already gotten this game
+        elig_pool = [i for i in elig_pool if i.name not in player.quest_chars_gained]
+
         elig_spell_pool = [i for i in self.spells if i.lvl <= player.lvl]
-        shop = random.sample(list(elig_pool),shop_size)
+
+        # hardcoded Pied Piper shop effect
+        if player.hero.name == 'Pied Piper':
+            elig_animals = [i for i in self.char_pool if i.lvl <= player.lvl and
+                'Animal' in i.type]
+            selected = random.choice(elig_animals)
+            selected.owner = player
+            selected.change_atk_mod(1)
+            selected.change_hlth_mod(1)
+            elig_pool.remove(selected)
+            shop = [selected] + random.sample(list(elig_pool),shop_size)
+        else:
+            shop = random.sample(list(elig_pool),shop_size)
+
+        # hard coding peter pants having a lvl 2 character in first turn's shop
+        if self.turn_counter == 1 and player.hero.name == 'Peter Pants' and first_shop:
+            elig_pool = [i for i in self.char_pool if i.lvl==2 and i not in shop]
+            selected = random.choice(elig_pool)
+            shop.remove(shop[0])
+            shop.append(selected)
+
         for i in shop:
             self.char_pool.remove(i)
             i.owner = player
             i.set_zone('shop')
         if player.check_spells_in_shop():
-            shop = shop + random.sample(list(elig_spell_pool),1)
-            assert len([i for i in shop if isinstance(i, Spell)])<=1
+            spell_count = 1
+            if player.hero.name == 'Potion Master':
+                spell_count = 2
+            shop = shop + random.sample(list(elig_spell_pool),spell_count)
+            #assert len([i for i in shop if isinstance(i, Spell)])<=1
         return(shop)
 
     def generate_partial_shop(self, player):
@@ -368,16 +486,48 @@ class Game:
             shop_size=4
         else:
             shop_size=5
-        elig_pool = [i for i in self.char_pool if i.lvl <= player.lvl]
+        if any([i.name == 'Staff of the Old Toad' for i in player.treasures]):
+            if player.lvl<=3:
+                elig_pool = [i for i in self.char_pool if i.lvl == player.lvl]
+            else:
+                elig_pool = [i for i in self.char_pool if i.lvl <= player.lvl and i.lvl>=4]
+        else:
+            elig_pool = [i for i in self.char_pool if i.lvl <= player.lvl]
+
+        # remove any quest characters that a player has already gotten this game
+        elig_pool = [i for i in elig_pool if i.name not in player.quest_chars_gained]
+
         elig_spell_pool = [i for i in self.spells if i.lvl <= player.lvl]
         addl_char_num = max(0, shop_size - len([i for i in player.shop if isinstance(i, Character)]))
-        addl_shop = random.sample(list(elig_pool),addl_char_num)
+
+        # hardcoded Pied Piper shop effect
+        if player.hero.name == 'Pied Piper':
+            elig_animals = [i for i in self.char_pool if i.lvl <= player.lvl and
+                'Animal' in i.type]
+            selected = random.choice(elig_animals)
+            elig_pool.remove(selected)
+            if addl_char_num > 0:
+                addl_shop = [selected]
+                selected.owner = player
+                selected.change_atk_mod(1)
+                selected.change_hlth_mod(1)
+                if addl_char_num > 1:
+                    addl_shop = addl_shop + random.sample(list(elig_pool),addl_char_num - 1)
+            else:
+                addl_shop = random.sample(list(elig_pool),addl_char_num)
+        else:
+            addl_shop = random.sample(list(elig_pool),addl_char_num)
         for i in addl_shop:
             self.char_pool.remove(i)
             i.owner = player
             i.set_zone('shop')
 
-        if all([isinstance(i, Character) for i in player.shop]) and player.check_spells_in_shop():
-            addl_shop = addl_shop + random.sample(list(elig_spell_pool),1)
+        if player.check_spells_in_shop():
+            spell_count = 1
+            if player.hero.name == 'Potion Master':
+                spell_count = 2
+            spell_count = spell_count - len([i for i in player.shop if isinstance(i, Spell)])
+            if spell_count > 0:
+                addl_shop = addl_shop + random.sample(list(elig_spell_pool),spell_count)
 
         return(addl_shop)

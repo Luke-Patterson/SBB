@@ -7,7 +7,7 @@ import pandas as pd
 # Book of Heroes
 def Book_of_Heroes_triggered_effect(source, slain, slayer):
     slayer.change_atk_mod(1)
-    slayer.change_hlth_mod(1)
+    slayer.change_hlth_mod(2)
 
 Book_of_Heroes = Treasure(
     name = 'Book of Heroes',
@@ -20,8 +20,8 @@ Book_of_Heroes = Treasure(
                 name='Book of Heroes Global Slay Effect trigger',
                 type='global slay',
                 condition = lambda self, condition_obj, triggered_obj:
-                    condition_obj.get_alignment() == 'Good' and
-                    triggered_obj.get_alignment() == 'Evil'
+                    condition_obj.check_alignment('Good') and
+                    triggered_obj.check_alignment('Evil')
             )
         )
     ]
@@ -121,7 +121,7 @@ Dark_Contract = Treasure(
         Purchase_Effect(
             name = 'Dark Contract Effect',
             effect_func = Dark_Contract_effect,
-            condition = lambda char: char.get_alignment()=='Evil'
+            condition = lambda char: char.check_alignment('Evil')
         )
     ]
 )
@@ -153,7 +153,6 @@ def Fairy_Tail_effect(char):
 def Fairy_Tail_reverse_effect(char):
     char.change_atk_mod(-1)
     char.change_hlth_mod(-1)
-
 
 Fairy_Tail = Treasure(
     name='Fairy Tail',
@@ -232,10 +231,23 @@ Locked_Chest = Treasure(
     ]
 )
 
+def Monster_Manual_triggered_effect(source, dead_char):
+    dead_char.change_atk_mod(2)
+
 Monster_Manual = Treasure(
     name = 'Monster Manual',
     lvl = 2,
-    abils = None
+    abils = [
+        Triggered_Effect(
+            name = 'Monster Manual Death Effect',
+            effect_func = Monster_Manual_triggered_effect,
+            trigger = Trigger(
+                name='Monster Manual Death Effect trigger',
+                type='die',
+                condition = lambda self, char: 'Monster' in char.type
+            )
+        )
+    ]
 )
 
 #Needle Nose Daggers
@@ -266,6 +278,27 @@ Needle_Nose_Daggers = Treasure(
 
             ),
             multi_ignore = True
+        )
+    ]
+)
+
+Noble_Steed_Modifier = Modifier(
+    name= "Noble Steed Modifier",
+    atk_func = lambda char, atk, source: atk + 1,
+    hlth_func = lambda char, hlth, source: hlth + 1
+)
+
+
+Noble_Steed = Treasure(
+    name= 'Noble Steed',
+    lvl = 2,
+    abils=[
+        # treasure boosting effect is hardcoded into quest resolution
+        Global_Static_Effect(
+            name = "Noble Steed Pump Effect",
+            effect_func = lambda char: char.add_modifier(Noble_Steed_Modifier),
+            reverse_effect_func = lambda char: char.remove_modifier(Noble_Steed_Modifier),
+            condition = lambda char: any([i.type == 'Quest' for i in char.abils])
         )
     ]
 )
@@ -319,10 +352,31 @@ Ring_of_Regeneration = Treasure(
 )
 
 # Rune Stones
+def Rune_Stones_trigger_effect(source):
+    if source.owner != None:
+        source.owner.discard_treasure(source)
+
+Rune_Stones = Treasure(
+    name = 'Rune Stones',
+    lvl = 2,
+    abils = [
+        Treasure_Level_Mod(
+            name='Rune Stones treasure level effect',
+            effect_func= lambda base_lvl: base_lvl + 1
+        ),
+        Triggered_Effect(
+            name = 'Rune Stones destroy effect',
+            effect_func = Rune_Stones_trigger_effect,
+            trigger = Trigger(
+                name = 'Rune Stones trigger',
+                type = 'gain treasure'
+            )
+        )
+    ]
+)
 
 # Secret Stash
 def Secret_Stash_trigger_effect(source):
-
     # doing this because owner could be None if trigger effect is multiplied
     if source.owner != None:
         owner = source.owner
@@ -407,7 +461,7 @@ Ancient_Sarcophagus= Treasure(
             trigger = Trigger(
                 name='Ancient Sarcophagus Death Effect trigger',
                 type='die',
-                condition = lambda self, char: char.get_alignment() == 'Evil'
+                condition = lambda self, char: char.check_alignment('Evil')
             )
         )
     ]
@@ -453,10 +507,11 @@ Cloak_of_the_Assassin= Treasure(
     ]
 )
 
-def Crystal_Ball_func(source):
+# # TODO: generate spell only if target spell was bought
+def Crystal_Ball_func(source, targeted):
     elig_spell_pool = [i for i in source.game.spells if i.lvl <= source.owner.lvl]
     selected = random.choice(list(elig_spell_pool))
-    if len(source.owner.shop) < 8:
+    if len(source.owner.shop) < 7:
         source.owner.shop.append(selected)
         for eff in source.owner.effects:
             if isinstance(eff, Shop_Effect):
@@ -497,16 +552,44 @@ Deepstone_Mine= Treasure(
     ]
 )
 
+Eye_of_Ares_Modifier = Modifier(
+    name= 'Eye of Ares Modifier',
+    atk_func = lambda char, atk, source: atk + 5
+)
+
+def Eye_of_Ares_opp_effect(source):
+    opp_effect = Global_Static_Effect(
+        name = 'Eye of Ares Opponent Effect',
+        effect_func = lambda self: self.add_modifier(Eye_of_Ares_Modifier),
+        reverse_effect_func = lambda self: self.remove_modifier(Eye_of_Ares_Modifier),
+        eob=True
+    )
+    source.owner.opponent.effects.append(opp_effect)
+
 Eye_of_Ares= Treasure(
     name='Eye of Ares',
     lvl=3,
-    abils=None
+    abils=[
+        Global_Static_Effect(
+            name = 'Eye of Ares Effect',
+            effect_func = lambda self: self.add_modifier(Eye_of_Ares_Modifier),
+            reverse_effect_func = lambda self: self.remove_modifier(Eye_of_Ares_Modifier)
+        ),
+        Triggered_Effect(
+            name = 'Eye of Ares give opponent effect',
+            effect_func = Eye_of_Ares_opp_effect,
+            trigger = Trigger(
+                name='Eye of Ares give opponent trigger',
+                type='start of combat'
+            )
+        )
+    ]
 )
 
 # Fancy Pants
 def Fancy_Pants_effect(char, eff):
-    char.change_eob_atk_mod(2)
-    char.change_eob_hlth_mod(2)
+    char.change_atk_mod(2)
+    char.change_hlth_mod(2)
 
 Fancy_Pants = Treasure(
     name='Fancy Pants',
@@ -553,7 +636,7 @@ Merlins_Hat = Treasure(
     lvl=3,
     abils=[
         Shop_Effect(
-            name="Merlin's Hat",
+            name="Merlin's Hat shop effect",
             spell_effect_func = Merlins_Hat_effect,
             spell_reverse_effect_func = Merlins_Hat_reverse_effect
         )
@@ -578,7 +661,6 @@ Power_Orb = Treasure(
     ]
 )
 
-# Ring of Revenge
 def Ring_of_Revenge_triggered_effect(source, dead_char):
     pos_map = {1:[5],2:[5,6],3:[6,7],4:[7]}
     if dead_char.position == None:
@@ -650,6 +732,30 @@ Tell_Tale_Quiver= Treasure(
     ]
 )
 
+# Treasure Map
+def Treasure_Map_trigger_effect(source):
+    if source.owner != None:
+        source.owner.discard_treasure(source)
+
+Treasure_Map = Treasure(
+    name = 'Treasure Map',
+    lvl = 2,
+    abils = [
+        Treasure_Level_Mod(
+            name='Treasure Map treasure level effect',
+            effect_func= lambda base_lvl: base_lvl + 2
+        ),
+        Triggered_Effect(
+            name = 'Treasure Map destroy effect',
+            effect_func = Treasure_Map_trigger_effect,
+            trigger = Trigger(
+                name = 'Treasure Map trigger',
+                type = 'gain treasure'
+            )
+        )
+    ]
+)
+
 def Coin_of_Charron_triggered_effect(source, dead_char):
     if len(source.owner.chars_dead) <= 1:
         dead_char.change_atk_mod(4)
@@ -664,7 +770,8 @@ Coin_of_Charron= Treasure(
             effect_func = Coin_of_Charron_triggered_effect,
             trigger = Trigger(
                 name='Coin of Charon Death Effect trigger',
-                type='die'
+                type='die',
+                condition = lambda self, char: char.lvl > 1
             )
         )
     ]
@@ -697,7 +804,12 @@ Deck_of_Many_Things= Treasure(
 Dwarven_Forge= Treasure(
     name='Dwarven Forge',
     lvl=4,
-    abils=None
+    abils=[
+        Upgrade_Reduce_Effect(
+            name = 'Dwarven Forge upgrade reduce effect',
+            condition = lambda char: 'Dwarf' in char.type
+        )
+    ]
 )
 
 def Fools_Gold_effect(source):
@@ -732,12 +844,20 @@ Fools_Gold= Treasure(
 Forking_Rod= Treasure(
     name='Forking Rod',
     lvl=4,
-    abils=None
+    abils=[
+        Spell_Multiplier(
+            name = 'Forking Rod Spell Multiplier',
+            condition = lambda spell: spell.current_cost <= 2
+        )
+    ]
 )
 
+
+
 def Gloves_of_Thieving_trigger_effect(source):
-    if source.owner.last_opponent.chars_dead != []:
-        copy = source.owner.last_opponent.chars_dead[0].create_copy(source.owner, 'Gloves of Thieving spell effect')
+    dead_chars = [i for i in source.owner.last_opponent.chars_dead if i.lvl > 1]
+    if dead_chars  != []:
+        copy = dead_chars[0].create_copy(source.owner, 'Gloves of Thieving spell effect')
         copy.current_cost = 0
         copy.add_to_hand(source.owner, store_in_shop=True)
         if source.owner.game.verbose_lvl >=3:
@@ -782,10 +902,109 @@ Hidden_Cache= Treasure(
     ]
 )
 
-# Other Hand of Vekna
-# Reduplicator
+Moonsong_Horn_Modifier = Modifier(
+    name= 'Moonsong Horn Modifier',
+    atk_func = lambda char, atk, source: atk + 1,
+    hlth_func = lambda char, hlth, source: hlth + 1,
+)
 
-# Ring of Rage
+def Moonsong_Horn_effect(spell):
+    spell.current_cost = max(0, spell.current_cost - 1)
+
+def Moonsong_Horn_reverse_effect(spell):
+    spell.current_cost = spell.base_cost
+
+
+Moonsong_Horn = Treasure(
+    name = 'Moonsong Horn',
+    lvl = 4,
+    abils=[
+        Global_Static_Effect(
+            name = 'Moonsong Horn Pump Effect',
+            effect_func = lambda char: char.add_modifier(Moonsong_Horn_Modifier),
+            reverse_effect_func = lambda char: char.remove_modifier(Moonsong_Horn_Modifier)
+        ),
+        Shop_Effect(
+            name="Moonsong Horn shop effect",
+            spell_effect_func = Moonsong_Horn_effect,
+            spell_reverse_effect_func = Moonsong_Horn_reverse_effect
+        )
+    ]
+)
+
+def Other_Hand_of_Vekna_triggered_effect(source, dead_char):
+    pos_map = {1:[1,2,3,4],
+        2:[1,2,3,4],
+        3:[1,2,3,4],
+        4:[1,2,3,4],
+        5:[5,6,7],
+        6:[5,6,7],
+        7:[5,6,7]}
+    if dead_char.position == None:
+        position = dead_char.last_position
+    else:
+        position = dead_char.position
+    assert position != None
+    if position in pos_map.keys():
+        pump_pos = pos_map[position]
+        for i in pump_pos:
+            if source.owner.board[i] != None:
+                source.owner.board[i].change_eob_atk_mod(1)
+                source.owner.board[i].change_eob_hlth_mod(1)
+                if dead_char.game.verbose_lvl>=4:
+                    print(source.owner.board[i],'pumped by', source)
+
+Other_Hand_of_Vekna= Treasure(
+    name='Other Hand of Vekna',
+    lvl=5,
+    abils=[
+        Triggered_Effect(
+            name = 'Other Hand of Vekna Death Effect',
+            effect_func = Other_Hand_of_Vekna_triggered_effect,
+            trigger = Trigger(
+                name='Other Hand of Vekna Death Effect trigger',
+                type='die'
+            )
+        )
+    ]
+)
+
+# Reduplicator
+def Reduplicator_summon_effect(source, summoned):
+    if hasattr(source, 'Reduplicator_used_this_turn') == False:
+        source.Reduplicator_used_this_turn = False
+    if source.Reduplicator_used_this_turn == False:
+        source.Reduplicator_used_this_turn = True
+        copy = summoned.create_copy(source.owner, 'Reduplicator copy')
+        copy.token = True
+        copy.summon(source.owner, position = summoned.position)
+
+def Reduplicator_reset_effect(source):
+    source.Reduplicator_used_this_turn = False
+
+Reduplicator = Treasure(
+    name = "Reduplicator",
+    lvl = 4,
+    abils = [
+        Triggered_Effect(
+            name = "Reduplicator reset triggered ability",
+            trigger = Trigger(
+                name= "Reduplicator reset trigger",
+                type= "start of combat"
+            ),
+            effect_func = Reduplicator_reset_effect
+        ),
+        Triggered_Effect(
+            name = "Reduplicator summon triggered ability",
+            trigger = Trigger(
+                name= "Reduplicator reset trigger",
+                type= "summon"
+            ),
+            effect_func = Reduplicator_summon_effect
+        )
+    ]
+)
+
 Ring_of_Rage_Modifier = Modifier(
     name= 'Ring of Rage Modifier',
     atk_func = lambda char, atk, source: atk + 3
@@ -798,12 +1017,28 @@ Ring_of_Rage= Treasure(
         Global_Static_Effect(
             name = 'Ring of Rage Effect',
             effect_func = lambda char: char.add_modifier(Ring_of_Rage_Modifier),
-            reverse_effect_func = lambda char: char.remove_modifier(Ring_of_Rage_Modifier),
-            condition = lambda char: (char.position==1 or char.position==2
-                or char.position==3 or char.position==4)
+            reverse_effect_func = lambda char: char.remove_modifier(Ring_of_Rage_Modifier)
         )
     ]
 )
+
+Six_of_Shields_Modifier = Modifier(
+    name= 'Six of Shields Modifier',
+    hlth_func = lambda char, hlth, source: hlth + 3
+)
+
+Six_of_Shields= Treasure(
+    name = 'Six of Shields',
+    lvl = 4,
+    abils= [
+        Global_Static_Effect(
+            name = 'Six of Shields Effect',
+            effect_func = lambda char: char.add_modifier(Six_of_Shields_Modifier),
+            reverse_effect_func = lambda char: char.remove_modifier(Six_of_Shields_Modifier)
+        )
+    ]
+)
+
 
 Sky_Castle_Modifier = Modifier(
     name= 'Sky Castle Modifier',
@@ -823,6 +1058,50 @@ Sky_Castle = Treasure(
         )
     ]
 )
+
+
+def Summoning_Portal_reset_effect(source):
+    source.Summoning_Portal_counter = 0
+
+def Summoning_Portal_count_effect(source, summoned):
+    source.Summoning_Portal_counter += 1
+
+def Summoning_Portal_summon_effect(source, summoned):
+    summoned.change_eob_atk_mod(source.Summoning_Portal_counter)
+    summoned.change_eob_hlth_mod(source.Summoning_Portal_counter)
+
+Summoning_Portal = Treasure(
+    name = 'Summoning Portal',
+    lvl=4,
+    abils=[
+        Triggered_Effect(
+            name = "Summoning Portal reset triggered ability",
+            trigger = Trigger(
+                name= "Summoning Portal reset trigger",
+                type= "start of combat"
+            ),
+            effect_func = Summoning_Portal_reset_effect
+        ),
+        Triggered_Effect(
+            name = "Summoning Portal summon counting ability",
+            trigger = Trigger(
+                name= "Summoning Portal counting trigger",
+                type= "summon"
+            ),
+            effect_func = Summoning_Portal_count_effect,
+            multi_ignore = True
+        ),
+        Triggered_Effect(
+            name = "Summoning Portal summon triggered ability",
+            trigger = Trigger(
+                name= "Summoning Portal summon trigger",
+                type= "summon"
+            ),
+            effect_func = Summoning_Portal_summon_effect
+        )
+    ]
+)
+
 
 def Ambrosia_reverse_effect(char):
     char.upgraded = False
@@ -852,10 +1131,25 @@ Ambrosia= Treasure(
         ]
 )
 
+def Draculas_Saber_effect(source, dead_char):
+    for i in source.owner.board.values():
+        if i != None:
+            i.change_eob_atk_mod(2)
+            i.change_eob_hlth_mod(1)
+
 Draculas_Saber= Treasure(
     name="Dracula's Saber",
     lvl=5,
-    abils=None
+    abils=[
+        Triggered_Effect(
+            name = 'Dracula Saber triggered effect',
+            effect_func = Draculas_Saber_effect,
+            trigger = Trigger(
+                name='Dracula Saber Effect trigger',
+                type='opponent die'
+            )
+        )
+    ]
 )
 
 def Exploding_Mittens_triggered_effect(source, dead_char):
@@ -896,22 +1190,20 @@ Hand_of_Midas= Treasure(
     ]
 )
 
-Harvest_Moon= Treasure(
-    name='Harvest Moon',
-    lvl=5,
-    abils=None
-)
+# Harvest_Moon= Treasure(
+#     name='Harvest Moon',
+#     lvl=5,
+#     abils=[]
+#     # ability hardcoded into attacks
+# )
 
 def Helm_of_the_Ugly_Gosling_effect(source):
-    lowest_atk = -1
-    pos = None
-    for i in range(1,8):
-        char = source.owner.board[i]
-        if char != None and char.atk() > lowest_atk:
-            pos = i
-    if pos != None:
-        source.owner.board[pos].change_eob_atk_mod(15)
-        source.owner.board[pos].change_eob_hlth_mod(15)
+    chars = [i for i in source.owner.board.values() if i != None]
+    if chars != []:
+        lowest_atk = min([i.atk() for i in chars])
+        lowest_atk_char = [i for i in chars if i.atk()==lowest_atk][0]
+        lowest_atk_char.change_eob_atk_mod(15)
+        lowest_atk_char.change_eob_hlth_mod(15)
 
 Helm_of_the_Ugly_Gosling= Treasure(
     name='Helm of the Ugly Gosling',
@@ -929,6 +1221,12 @@ Helm_of_the_Ugly_Gosling= Treasure(
 )
 
 # Horn of Olympus
+Horn_of_Olympus = Treasure(
+    name = 'Horn of Olympus',
+    lvl =5,
+    abils = []
+    # abil hardcoded into support effects
+)
 
 Mimic = Treasure(
     name = 'Mimic',
@@ -940,29 +1238,62 @@ Mimic = Treasure(
     ]
 )
 
-# Monkeys_Paw = Treasure(
-#     lvl = 5,
-#     abils = [
-#         Global_Static_Effect(
-#             name = "Monkey's Paw",
-#             effect_func = lambda char: char.add_modifier(Monkeys_Paw_Modifier),
-#             reverse_effect_func = lambda char: char.remove_modifier(Monkeys_Paw_Modifier),
-#             condition = lambda char: any([i==None for i in char.owner.board.values()])
-#         )
-#     ]
-# )
+Monkeys_Paw_Modifier = Modifier(
+    name = "Monkey's Paw Modifier",
+    atk_func = lambda char, atk, source: atk + 6,
+    hlth_func = lambda char, hlth, source: hlth + 6,
+)
 
-# Staff of the Old Toad
-# Summoning Portal
+def Monkeys_Paw_begin_combat_check(source):
+    if any([i==None for i in source.owner.board.values()]):
+        source.Monkeys_Paw_toggle = True
+    else:
+        source.Monkeys_Paw_toggle = False
+
+def Monkeys_Paw_cond(char):
+    result = any([i.Monkeys_Paw_toggle for i in char.owner.treasures if i.name == "Monkey's Paw"
+        and hasattr(i,"Monkeys_Paw_toggle")])
+    return result
+
+Monkeys_Paw = Treasure(
+    name = "Monkey's Paw",
+    lvl = 5,
+    abils = [
+        Triggered_Effect(
+            name = "Monkey's triggered ability",
+            trigger = Trigger(
+                name= "Monkey's Paw trigger",
+                type= "start of combat"
+            ),
+            effect_func = Monkeys_Paw_begin_combat_check
+        ),
+        Global_Static_Effect(
+            name = "Monkey's Paw",
+            effect_func = lambda char: char.add_modifier(Monkeys_Paw_Modifier),
+            reverse_effect_func = lambda char: char.remove_modifier(Monkeys_Paw_Modifier),
+            condition = Monkeys_Paw_cond
+        )
+    ]
+)
+
+Staff_of_the_Old_Toad = Treasure(
+    name="Staff of the Old Toad",
+    lvl=5,
+    abils=[]
+    # ability hard coded into shop generation
+)
+
+
+
 
 Sword_of_Fire_and_Ice_Atk_Modifier = Modifier(
     name= 'Sword of Fire and Ice Attack Modifier',
-    atk_func = lambda char, atk, source: atk + 5
+    atk_func = lambda char, atk, source: atk + 6
 )
 
 Sword_of_Fire_and_Ice_Health_Modifier = Modifier(
     name= 'Sword of Fire and Ice Health Modifier',
-    hlth_func = lambda char, hlth, source: hlth + 5
+    hlth_func = lambda char, hlth, source: hlth + 6
 )
 
 def Sword_of_Fire_and_Ice_effect(char):
@@ -982,7 +1313,7 @@ def Sword_of_Fire_and_Ice_reverse_effect(char):
 
 Sword_of_Fire_and_Ice = Treasure(
     name = 'Sword of Fire and Ice',
-    lvl = 2,
+    lvl = 5,
     abils = [
         Global_Static_Effect(
             name = 'Sword of Fire and Ice Effect',
@@ -992,7 +1323,61 @@ Sword_of_Fire_and_Ice = Treasure(
     ]
 )
 
-# Tree of Life
+# The 9th Book of Merlin
+def Merlin_9th_Book_Last_Breath_Effect(mage):
+    Deck_spells = ['Falling Stars','Earthquake', 'Fireball', 'Lightning Bolt', 'Ride of the Valkyries',
+    'Blessing of Athena', 'Poison Apple', 'Shrivel', 'Smite','Pigomorph']
+    elig_spells = [i for i in mage.owner.game.spells if i.name in Deck_spells
+    and i.lvl <= mage.owner.lvl]
+    if elig_spells != []:
+        selected = random.choice(elig_spells)
+        selected.cast(mage.owner, in_combat = True)
+
+def The_Ninth_Book_of_Merlin_effect(char):
+    abil = Last_Breath_Effect(
+        name='The 9th Book of Merlin Last Breath Effect',
+        effect_func = Merlin_9th_Book_Last_Breath_Effect
+    )
+    char.abils.append(abil)
+    abil.add_to_obj(char)
+
+def The_Ninth_Book_of_Merlin_reverse_effect(char):
+    rm_eff = [i for i in char.abils if i.name=='The 9th Book of Merlin Last Breath Effect']
+    char.abils.remove(rm_eff[0])
+
+The_Ninth_Book_of_Merlin = Treasure(
+    name = 'The 9th Book of Merlin',
+    lvl = 5,
+    abils = [
+        Global_Static_Effect(
+            name = 'The 9th Book of Merlin Effect',
+            effect_func = The_Ninth_Book_of_Merlin_effect,
+            reverse_effect_func = The_Ninth_Book_of_Merlin_reverse_effect,
+            condition = lambda char: 'Mage' in char.type
+        )
+    ]
+)
+
+def Tree_of_Life_triggered_effect(source, dead_char):
+    for i in source.owner.board.values():
+        if i != None:
+            i.change_eob_hlth_mod(i.dmg_taken)
+
+Tree_of_Life= Treasure(
+    name='Tree of Life',
+    lvl=5,
+    abils=[
+        Triggered_Effect(
+            name = 'Tree of Life Death Effect',
+            effect_func = Tree_of_Life_triggered_effect,
+            trigger = Trigger(
+                name='Tree of Life Death Effect trigger',
+                type='die'
+            )
+        )
+    ]
+)
+
 
 def Embiggening_Stone_effect(char):
     char.change_atk_mod(15)
@@ -1015,10 +1400,22 @@ Embiggening_Stone= Treasure(
     ]
 )
 
+def Evil_Eye_effect(eff, player):
+    player.support_effects_multiplier += 1
+
+def Evil_Eye_reverse_effect(eff, player):
+    player.support_effects_multiplier -= 1
+
 Evil_Eye= Treasure(
     name='Evil Eye',
     lvl=6,
-    abils=None
+    abils=[
+        Player_Effect(
+            name = 'Evil Eye Support Effect Multiplier',
+            effect_func = Evil_Eye_effect,
+            reverse_effect_func = Evil_Eye_reverse_effect
+        )
+    ]
 )
 
 def Ivory_Owl_effect(source):
@@ -1042,7 +1439,6 @@ Ivory_Owl= Treasure(
     ]
 )
 
-# Pandora's Box
 def Pandoras_Box_effect(source):
     plyr = source.owner
     treasures = [i for i in source.owner.game.treasures if i.lvl == 7 and i not in
@@ -1071,15 +1467,72 @@ Pandoras_Box = Treasure(
                 type = 'end of turn'
             ),
             effect_func = Pandoras_Box_effect,
-            counter = 2
+            counter = 1,
+            multi_ignore = True
         )
     ]
 )
 
+
+def Phoenix_Feather_resummon_effect(source, dead_char):
+    # check if current position has a token with origin from phoenix feather
+    # if so, that means it's the second trigger of phoenix feather (from mimic) and
+    # we need to find a new position for the second token
+    if source.owner.board[dead_char.position] != None and \
+        source.owner.board[dead_char.position].origin == 'Phoenix Feather summon':
+        spawn_pos = source.owner.find_next_spawn_position(dead_char.position)
+    else:
+        spawn_pos = dead_char.position
+
+    # only create a copy if there's space
+    if spawn_pos != None:
+        copy = dead_char.create_copy(source.owner, 'Phoenix Feather summon')
+        copy.token = True
+        copy.summon(source.owner, spawn_pos)
+
+def Phoenix_Feather_resummon_condition(source, condition_obj):
+    chars = [i for i in source.source.source.owner.board.values() if i != None and i != condition_obj]
+    if chars != []:
+        highest_atk = max([i.atk() for i in chars])
+    else:
+        highest_atk = -1
+    return condition_obj.atk()>= highest_atk
+
+
+Phoenix_Feather= Treasure(
+    name='Phoenix Feather',
+    lvl=6,
+    abils=[
+        Triggered_Effect(
+            name = "Phoenix Feather resummon ability",
+            trigger = Trigger(
+                name= "Phoenix Feather resummon trigger",
+                type= "die",
+                condition = Phoenix_Feather_resummon_condition
+            ),
+            effect_func = Phoenix_Feather_resummon_effect,
+            once_per_turn= True
+        ),
+    ]
+)
+
+def Spear_of_Achilles_effect(source, attacker):
+    attacker.change_eob_atk_mod(7)
+    attacker.change_eob_hlth_mod(7)
+
 Spear_of_Achilles= Treasure(
     name='Spear of Achilles',
     lvl=6,
-    abils=None
+    abils=[
+        Triggered_Effect(
+            name = 'Spear of Achilles attack effect',
+            effect_func = Spear_of_Achilles_effect,
+            trigger = Trigger(
+                name='Spear of Achilles attack effect trigger',
+                type='attack'
+            )
+        )
+    ]
 )
 
 
@@ -1126,8 +1579,23 @@ The_Singing_Sword= Treasure(
 )
 
 # Wand of Weirding
+Wand_of_Weirding = Treasure(
+    name= 'Wand of Weirding',
+    lvl=6,
+    abils = [
+        Spell_Multiplier(
+            name = 'Wand of Weirding Spell Multiplier'
+        )
+    ]
+)
 
 # Black Prism
+Black_Prism = Treasure(
+    name= 'Black Prism',
+    lvl =7,
+    # Black Prism abil is a hardcoded check when casting a spell
+    abils = []
+)
 
 def Excalibur_effect(char):
     char.upgraded = True
@@ -1183,22 +1651,82 @@ Magic_Sword_100= Treasure(
     ]
 )
 
+def Mirror_Mirror_assign_respawn(source):
+    for n in range(1,5):
+        char = source.owner.board[n]
+        if char != None:
+            char.trackers['Mirror_Mirror_respawn'] += 1
+
+def Mirror_Mirror_reset_respawn(source):
+    for char in source.owner.hand:
+        char.trackers['Mirror_Mirror_respawn'] = 0
+
+def Mirror_Mirror_triggered_effect(source, dead_char):
+    spawn_pos = dead_char.position
+
+    # only create a copy if there's space
+    if spawn_pos != None:
+        copy = dead_char.create_copy(source.owner, 'Mirror Mirror summon', plain_copy = True)
+        copy.token = True
+        copy.base_atk = 1
+        copy.base_hlth = 1
+        copy.trackers['Mirror_Mirror_respawn'] = dead_char.trackers['Mirror_Mirror_respawn'] - 1
+        copy.summon(source.owner, spawn_pos)
+
 Mirror_Mirror= Treasure(
     name='Mirror Mirror',
     lvl=7,
-    abils=None
+    abils=[
+        Triggered_Effect(
+            name = "Mirror Mirror assign respawn ability",
+            trigger = Trigger(
+                name= "Mirror Mirror trigger",
+                type= "start of combat"
+            ),
+            effect_func = Mirror_Mirror_assign_respawn
+        ),
+        Triggered_Effect(
+            name = 'Mirror Mirror Death Effect',
+            effect_func = Mirror_Mirror_triggered_effect,
+            trigger = Trigger(
+                name='Mirror Mirror Death Effect trigger',
+                type='die',
+                condition = lambda source, condition_obj: condition_obj.trackers
+                    ['Mirror_Mirror_respawn'] > 0
+            ),
+            multi_ignore = True
+        ),
+        Triggered_Effect(
+            name = "Mirror Mirror reset respawn ability",
+            trigger = Trigger(
+                name= "Mirror Mirror trigger",
+                type= "end of turn"
+            ),
+            effect_func = Mirror_Mirror_reset_respawn
+        ),
+    ]
 )
 
-Phoenix_Feather= Treasure(
-    name='Phoenix Feather',
-    lvl=7,
-    abils=None
-)
+# approximating the limitation of time to roll here
+def The_Holy_Grail_effect(source):
+    source.owner.next_turn_addl_gold += 50
+    if source.owner != None:
+        source.owner.discard_treasure(source)
 
 The_Holy_Grail= Treasure(
     name='The Holy Grail',
     lvl=7,
-    abils=None
+    abils=[
+        Triggered_Effect(
+            name = "The Holy Grail triggered ability",
+            trigger = Trigger(
+                name= "The Holy Grail trigger",
+                type= "end of turn"
+            ),
+            effect_func = The_Holy_Grail_effect,
+            multi_ignore = True
+        )
+    ]
 )
 
 def The_Round_Table_effect(source):

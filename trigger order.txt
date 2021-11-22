@@ -1,0 +1,17 @@
+1: Ancient Sarcophagus seems to trigger after all last breaths (at least all that i've tested)
+2: Dracula's Saber bucks the trend by applying the buff immediately, invariant of who was the attacker
+3: Other Hand Of Vecna (among, presumably others) apply _after_ the units are summoned. Or perhaps are buffing the units while they are "pending summon"? Mirror Mirror summons the units _before_ other buffs. Or perhaps at start of combat gifts those units an on-death effect?
+4: Last Breaths seem to have higher priority with later board slots
+5: Muerte seems to not proc on the first last breath, but perhaps the final last breath resolved during the resolution of the first stack that contains a last breath
+
+Fallen Angel should check at start of combat before anything else
+
+So to actually clarify timing more formally here.  Stuff in the same timing-slot is currently believed to be randomly chosen within the same set (I've confirmed this with Robin & Gosling; less certain on #3):
+1) Ambrosia
+2) Shrivel
+3) Ivory Owl, King Arthur, Heartwood Elder, Lordy
+4) Ashwood Elm
+5) Shoulder Fairies
+6) Robin Wood, Gosling Helm
+7) Round Table
+8) Other Spells, Meteors, etc. (**I haven't had a chance to test more fully if there are more timing distinctions here, which there probably are.)

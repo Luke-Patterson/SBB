@@ -1,4 +1,5 @@
 from c_Treasure import Treasure
+import random
 
 class Effect:
     def __init__(self,name, effect_func=None, reverse_effect_func = None, condition = lambda x: True,
@@ -39,6 +40,16 @@ class Effect:
     def __repr__(self):
         return self.name
 
+# Effect to reduce number of characters needed to upgrade
+class Upgrade_Reduce_Effect(Effect):
+    def __init__(self, name:str, effect_func=None, reverse_effect_func = None,
+        condition = lambda x: True, modifier = None, multi_ignore=False):
+        super().__init__(name,effect_func, reverse_effect_func, condition, modifier
+            , multi_ignore= multi_ignore)
+
+    # condition object stores the condition chars must meet for the char to require
+    # only two chars
+
 # Effect that modifiers level of treasures a player gets
 # Effect is added to a player object's effect attribute
 class Treasure_Level_Mod(Effect):
@@ -68,6 +79,24 @@ class Treasure_Effect_Multiplier(Effect):
     def reverse_effect(self, effect):
         if effect.multi_ignore == False and self.condition(effect):
             effect.decrease_effect_multiplier()
+
+# class Support_Effect_Multiplier(Effect):
+#     def __init__(self, name:str, effect_func=None, reverse_effect_func = None,
+#         condition = lambda x: True, modifier = None, multi_ignore=False):
+#         super().__init__(name,effect_func, reverse_effect_func, condition, modifier
+#             , multi_ignore= multi_ignore)
+#         self.type='Support Effect Multiplier'
+#
+#     def apply_effect(self, effect):
+#         if effect.multi_ignore == False and self.condition(effect):
+#             for _ in range(self.multiplier):
+#                 effect.increment_effect_multiplier()
+#
+#     def reverse_effect(self, effect):
+#         if effect.multi_ignore == False and self.condition(effect):
+#             for _ in range(self.multiplier):
+#                 effect.decrease_effect_multiplier()
+
 
 # Effect that affects a player
 # Effect is added to a player object's effect attribute
@@ -113,14 +142,17 @@ class Support_Effect(Effect):
         self.type='Support Effect'
 
     def apply_effect(self, char):
-        for _ in range(self.multiplier):
+        for _ in range(char.owner.support_effects_multiplier):
             self.effect_func(char, self.source)
+            char.effects.append(self)
+
 
     # can rely on multiplier for reverse as there's no way to alter support
     # multipliers in combat, which is the only time support effects are reversed
     def reverse_effect(self, char):
-        for _ in range(self.multiplier):
+        for _ in range(char.owner.support_effects_multiplier):
             self.reverse_effect_func(char, self.source)
+            char.effects.remove(self)
 
 # Effect that occurs on a character's death
 # Effect is added to a character object's abil attribute
@@ -140,10 +172,11 @@ class Last_Breath_Effect(Effect):
 class Purchase_Effect(Effect):
     def __init__(self, name:str, effect_func=None, reverse_effect_func = None,
         condition = lambda x: True, modifier = None, once_per_turn = False
-        , multi_ignore=False):
+        , multi_ignore=False, eob=False):
         super().__init__(name,effect_func, reverse_effect_func, condition, modifier,
             once_per_turn, multi_ignore= multi_ignore)
         self.type='Purchase Effect'
+        self.eob = eob
 
     def apply_effect(self, eff, char):
         if self.activated_this_turn == False:
@@ -194,11 +227,14 @@ class Local_Static_Effect(Effect):
 # Effect is added to both a character and player object's effect attribute
 class Global_Static_Effect(Effect):
     def __init__(self, name:str, effect_func=None, reverse_effect_func = None,
-        condition = lambda x: True, modifier = None, multi_ignore=False):
+        condition = lambda x: True, modifier = None, multi_ignore=False, both_sides=False,
+        eob = False):
         super().__init__(name,effect_func, reverse_effect_func, condition, modifier
             , multi_ignore= multi_ignore)
         self.type='Global Static Effect'
         self.source = None
+        self.both_sides = both_sides
+        self.eob = eob
 
     def apply_effect(self, obj):
         for _ in range(self.multiplier):
@@ -234,11 +270,13 @@ class Global_Static_Effect(Effect):
 class Shop_Effect(Effect):
     def __init__(self, name:str, char_effect_func = None, char_reverse_effect_func = None,
             spell_effect_func = None, spell_reverse_effect_func=None,
-            condition = lambda x: True, modifier= None, multi_ignore=False):
+            condition = lambda x: True, modifier= None, multi_ignore=False, eob = False):
         super().__init__(name, condition, modifier, multi_ignore= multi_ignore)
 
-        self.effect_func = lambda x: print('wrong effect passed')
-        self.reverse_effect_func = lambda x: print('wrong effect passed')
+        def _error_raise(x):
+            raise 'wrong type of effect func called for a shop effect. should be char_ or spell_ effect'
+        self.effect_func = _error_raise
+        self.reverse_effect_func = _error_raise
 
         self.type='Shop Effect'
         self.source = None
@@ -246,15 +284,18 @@ class Shop_Effect(Effect):
         self.char_reverse_effect_func = char_reverse_effect_func
         self.spell_effect_func = spell_effect_func
         self.spell_reverse_effect_func = spell_reverse_effect_func
+        self.eob = eob
 
     def apply_effect(self, obj):
+        obj.effects.append(self)
         for _ in range(self.multiplier):
             if self.char_effect_func != None and obj.__class__.__name__=='Character' and self.condition(obj):
                 self.char_effect_func(obj)
             if self.spell_effect_func != None and obj.__class__.__name__=='Spell' and self.condition(obj):
                 self.spell_effect_func(obj)
 
-    def reverse_effect(self, char):
+    def reverse_effect(self, obj):
+        obj.effects.remove(self)
         for _ in range(self.multiplier):
             if self.char_reverse_effect_func != None and obj.__class__.__name__=='Character':
                 self.char_reverse_effect_func(obj)
@@ -266,10 +307,9 @@ class Shop_Effect(Effect):
     # effect accordingly
     def increment_effect_multiplier(self):
         self.multiplier += 1
-        self.effect_func(self)
         self.source.owner.effects.append(self)
-        for char in self.source.owner.shop:
-            if self in char.effects:
+        for obj in self.source.owner.shop:
+            if self in obj.effects:
                 if self.char_effect_func != None and obj.__class__.__name__=='Character' and self.condition(obj):
                     self.char_effect_func(obj)
                 if self.spell_effect_func != None and obj.__class__.__name__=='Spell' and self.condition(obj):
@@ -278,10 +318,9 @@ class Shop_Effect(Effect):
     def decrease_effect_multiplier(self):
         self.multiplier -= 1
         assert self.multiplier != 0
-        self.reverse_effect_func(self)
         self.source.owner.effects.remove(self)
-        for char in self.source.owner.shop:
-            if self in char.effects:
+        for obj in self.source.owner.shop:
+            if self in obj.effects:
                 if self.char_reverse_effect_func != None and obj.__class__.__name__=='Character':
                     self.char_reverse_effect_func(obj)
                 if self.spell_reverse_effect_func != None and obj.__class__.__name__=='Spell':
@@ -292,7 +331,7 @@ class Shop_Effect(Effect):
 # depending on the type of trigger.
 class Triggered_Effect(Effect):
     def __init__(self, name:str, trigger, effect_func, condition = lambda obj: True,
-        counter = None, eob=False, multi_ignore=False):
+        counter = None, eob=False, multi_ignore=False, once_per_turn = False):
         super().__init__(name, effect_func, condition = condition , multi_ignore=multi_ignore)
         self.trigger = trigger
         self.trigger.source = self
@@ -302,22 +341,34 @@ class Triggered_Effect(Effect):
         self.counter = counter
         self.eob = eob
         self.activated_this_turn = False
+        self.once_per_turn = once_per_turn
+        self.type = 'Triggered Effect'
 
     def trigger_effect(self, effect_kwargs= None):
-        if self.counter == None or self.counter <= 0:
+
+        # if statement handles two types of trigger limiters
+        # first statement handles if a counter trigger hits zero, or it doesn't have a counter
+        # second statement handles if a once per turn trigger has been activated
+        if (self.counter == None or self.counter <= 0) and \
+            self.activated_this_turn == False:
             if self.condition(self.source):
+                if self.once_per_turn:
+                    self.activated_this_turn = True
+
                 for _ in range(self.multiplier):
                     if effect_kwargs == None:
                         self.effect_func(self.source)
                     else:
                         self.effect_func(self.source, **effect_kwargs)
 
+
             # for treasures with counters, remove them when they hit zero
             if self.counter != None and isinstance(self.source, Treasure) \
                 and self.source.owner != None:
                 self.source.owner.discard_treasure(self.source)
 
-        else:
+
+        elif self.counter != None:
             self.counter -= 1
 
     def apply_effect(self, obj):
@@ -342,20 +393,60 @@ class Quest(Triggered_Effect):
         self.counter_start_val = counter
         self.source = None
         self.increment = increment
+        self.completed = False
+        self.finish_effect_resolved = False
+        self.type = 'Quest'
 
     def finish_effect(self):
+        if self.source.game.verbose_lvl >= 3:
+            print(self.source,'Quest finishes')
         self.source.upgraded = True
-        self.source.owner.select_treasure(self.source.lvl)
+
+        selected_lvl = self.source.lvl
+        if self.source.owner.check_for_treasure('Noble Steed'):
+            selected_lvl += 1
+            if self.source.owner.check_for_treasure('Mimic'):
+                selected_lvl += 1
+            if self.source.owner.hero.name == 'Celestial Tiger':
+                selected_lvl += 1
+
+        self.source.owner.select_treasure(selected_lvl)
+        self.finish_effect_resolved = True
 
     # args added so the function can handle triggers with effect kwargs
     def trigger_effect(self, *args, **kwargs):
-        self.counter -= self.increment
-        if self.counter==0:
-            for _ in range(self.multiplier):
-                self.finish_effect()
+        if self.trigger.type == 'deal damage':
+            # damage dealt should be being passed in kwargs
+            self.counter -= locals()['args'][0]['damage_dealt']
+            if self.source.game.verbose_lvl >= 4:
+                print(self,'counter decreases by', locals()['args'][0]['damage_dealt'])
+        else:
+            self.counter -= self.increment
+            if self.source.game.verbose_lvl >= 4:
+                print(self,'counter decreases')
+
+        if self.counter<=0:
+            self.completed = True
+
+
 
     def __repr__(self):
         return self.name
+
+class Spell_Multiplier(Effect):
+    def __init__(self, name:str, effect_func=None, reverse_effect_func = None,
+        condition = lambda x: True, modifier = None, multi_ignore=False):
+        super().__init__(name,effect_func, reverse_effect_func, condition, modifier
+            , multi_ignore= multi_ignore)
+        self.type='Spell Multiplier'
+
+    def apply_effect(self, spell, multiplier):
+        for _ in range(self.multiplier):
+            if self.condition(spell):
+                multiplier += 1
+
+        return multiplier
+
 
 class Modifier:
     def __init__(self, name:str, atk_func = None, hlth_func=None, oth_func=None,
@@ -394,8 +485,10 @@ class Trigger:
 
         self.name = name
         assert type in ['buy','start of combat','end of combat','cast','purchase'
-            ,'slay','die','attack', 'target', 'global slay', # if any char slays
-            'start of turn', 'end of turn', 'survive damage','clear front row']
+            ,'slay','die','opponent die','attack', 'target', 'global slay', # if any char slays
+            'start of turn', 'end of turn', 'survive damage','clear front row',
+            'summon', 'deal damage', 'atk/hlth >25','attacked', 'change_mod',
+            'gain treasure','gain hero','start of game','lose life']
         # make sure type is one of the ones that have been programmed
         self.type = type
         self.condition = condition
@@ -412,20 +505,23 @@ class Target:
         self.condition = condition
         self.source= None
 
-    def target_select(self):
+    def target_select(self, random_target):
         legal_targets = []
         for i in self.source.owner.hand:
             if self.condition(i):
                 legal_targets.append(i)
-        self.source.selected_target = self.source.owner.input_choose(legal_targets)
-        self.source.owner.check_for_triggers('target', triggering_obj = self.source.selected_target)
+        if random_target:
+            self.source.selected_target = random.choice(legal_targets)
+        else:
+            self.source.selected_target = self.source.owner.input_choose(legal_targets)
+        self.source.owner.check_for_triggers('target', triggering_obj = self.source.selected_target,
+            effect_kwargs={'targeted':self.source.selected_target})
         # hard coded hack to get sleeping princess' transform to transfer the
         # target of the spell to the transformed Awakened Princess.
         if self.source.selected_target.name == 'Sleeping Princess':
             # the last object in the owner's hand should be the transformed princess
             assert self.source.owner.hand[-1].name == 'Awakened Princess'
             self.source.selected_target = self.source.owner.hand[-1]
-
 
     def check_for_legal_targets(self, plyr):
         legal_targets = []

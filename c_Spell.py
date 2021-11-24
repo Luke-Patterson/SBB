@@ -20,6 +20,7 @@ class Spell:
         self.spell_for_turn = spell_for_turn
         self.owner = None
         self.effects = []
+        self.purchased = False
         # boolean for whether multi-casting a spell does anything
         self.ignore_multiplier = ignore_multiplier
 
@@ -32,7 +33,9 @@ class Spell:
             print(player, 'purchases', self, 'targetting', self.selected_target)
         if self.spell_for_turn:
             player.spell_played_this_turn=True
+        player.spell_purchased_this_turn = True
         player.shop.remove(self)
+        self.purchased = True
         self.cast(player)
 
     def cast(self, owner, in_combat=False, random_target = False):
@@ -73,7 +76,7 @@ class Spell:
                             self.battle_effect(self)
                         else:
                             self.effect(self)
-                    self.owner.spells_cast_this_game += 1
+                    owner.spells_cast_this_game += 1
 
         else:
             if multiplier != 1 and self.owner.game.verbose_lvl>=3:
@@ -88,11 +91,12 @@ class Spell:
                         self.battle_effect(self)
                     else:
                         self.effect(self)
-                self.owner.spells_cast_this_game += 1
+                owner.spells_cast_this_game += 1
 
         # clean up
         self.selected_target=None
         self.owner = None
+        self.purchased = False
 
     def scrub_buffs(self, eob_only = True):
         self.current_cost = self.base_cost

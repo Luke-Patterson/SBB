@@ -6,6 +6,7 @@ class Treasure:
         self.lvl=lvl
         self.abils=abils
         self.last_owner = None
+        self.Summoning_Portal_counter = 0
         if abils!=None:
             for i in self.abils:
                 i.add_to_obj(self)

@@ -105,7 +105,7 @@ class Player_Effect(Effect):
         condition = lambda x: True, modifier = None, multi_ignore=False):
         super().__init__(name,effect_func, reverse_effect_func, condition, modifier
             , multi_ignore= multi_ignore)
-        self.type='Hero Effect'
+        self.type='Player Effect'
 
     def apply_effect(self, source):
         for _ in range(self.multiplier):
@@ -113,10 +113,7 @@ class Player_Effect(Effect):
             source.owner.effects.append(self)
 
     def reverse_effect(self, source):
-        for _ in range(self.multiplier):
-            self.reverse_effect_func(self, source.owner)
-            source.owner.effects.remove(self)
-        assert self not in source.owner.effects
+        self.reverse_effect_func(self, source.owner)
 
     # for static effects, every time the multiplier changes, we have to
     # check all objects in a player's possession and add/remove an instance of the
@@ -146,13 +143,13 @@ class Support_Effect(Effect):
             self.effect_func(char, self.source)
             char.effects.append(self)
 
-
     # can rely on multiplier for reverse as there's no way to alter support
     # multipliers in combat, which is the only time support effects are reversed
+    # update: don't need to use multiplier as a copy of the effect is added
+    # for each multiplier and reverse_effect is called for each copy
     def reverse_effect(self, char):
-        for _ in range(char.owner.support_effects_multiplier):
-            self.reverse_effect_func(char, self.source)
-            char.effects.remove(self)
+        # for _ in range(char.owner.support_effects_multiplier):
+        self.reverse_effect_func(char, self.source)
 
 # Effect that occurs on a character's death
 # Effect is added to a character object's abil attribute
@@ -205,8 +202,7 @@ class Local_Static_Effect(Effect):
             self.effect_func(selfchar)
 
     def reverse_effect(self, selfchar):
-        for _ in range(self.multiplier):
-            self.reverse_effect_func(selfchar)
+        self.reverse_effect_func(selfchar)
 
     # for static effects, every time the multiplier changes, we have to
     # check all objects in a player's possession and add/remove an instance of the
@@ -239,6 +235,7 @@ class Global_Static_Effect(Effect):
     def apply_effect(self, obj):
         for _ in range(self.multiplier):
             self.effect_func(obj)
+
 
     def reverse_effect(self, obj):
         for _ in range(self.multiplier):
@@ -295,12 +292,10 @@ class Shop_Effect(Effect):
                 self.spell_effect_func(obj)
 
     def reverse_effect(self, obj):
-        obj.effects.remove(self)
-        for _ in range(self.multiplier):
-            if self.char_reverse_effect_func != None and obj.__class__.__name__=='Character':
-                self.char_reverse_effect_func(obj)
-            if self.spell_reverse_effect_func != None and obj.__class__.__name__=='Spell':
-                self.spell_reverse_effect_func(obj)
+        if self.char_reverse_effect_func != None and obj.__class__.__name__=='Character':
+            self.char_reverse_effect_func(obj)
+        if self.spell_reverse_effect_func != None and obj.__class__.__name__=='Spell':
+            self.spell_reverse_effect_func(obj)
 
     # for static effects, every time the multiplier changes, we have to
     # check all objects in a player's possession and add/remove an instance of the
@@ -465,7 +460,7 @@ class Modifier:
 
 class Trigger:
     def __init__(self, name:str, type, condition= lambda self, condition_obj,
-        triggered_obj = None: True, battle_trigger = True):
+        triggered_obj = None: True):
 
         '''
         object representing a trigger that needs to be checked for
@@ -479,8 +474,6 @@ class Trigger:
             For many triggers this is just the source of the trigger and often not used.
             triggered_obj - only used by slay triggers triggered. This is the character
             that was slew in that case.
-        battle_trigger - boolean for whether a trigger is checked during the battle.
-        I think this was never really implemented to do anything.
         '''
 
         self.name = name
@@ -492,7 +485,6 @@ class Trigger:
         # make sure type is one of the ones that have been programmed
         self.type = type
         self.condition = condition
-        self.battle_trigger = battle_trigger
         self.source=None
 
     def __repr__(self):
@@ -514,11 +506,15 @@ class Target:
             self.source.selected_target = random.choice(legal_targets)
         else:
             self.source.selected_target = self.source.owner.input_choose(legal_targets)
-        self.source.owner.check_for_triggers('target', triggering_obj = self.source.selected_target,
-            effect_kwargs={'targeted':self.source.selected_target})
+
+        # only check for target triggers if the spell was purchased
+        if self.source.purchased:
+            self.source.owner.check_for_triggers('target', triggering_obj = self.source.selected_target,
+                effect_kwargs={'targeted':self.source.selected_target})
+
         # hard coded hack to get sleeping princess' transform to transfer the
         # target of the spell to the transformed Awakened Princess.
-        if self.source.selected_target.name == 'Sleeping Princess':
+        if self.source.purchased and self.source.selected_target.name == 'Sleeping Princess':
             # the last object in the owner's hand should be the transformed princess
             assert self.source.owner.hand[-1].name == 'Awakened Princess'
             self.source.selected_target = self.source.owner.hand[-1]

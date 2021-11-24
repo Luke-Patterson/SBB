@@ -867,7 +867,20 @@ Shrivel = Spell(
 # croc bait
 def Croc_Bait_effect(spell):
     char = Captain_Croc.create_copy(spell.owner, 'Captain Croc Spell')
-    char.trackers['Croc_Bait_char'] = spell.selected_target.create_copy(spell.owner, 'Captain Croc Copy')
+    if spell.owner.game.verbose_lvl >=4:
+        print(spell, 'creates', char)
+
+    # for some reason trackers object is linked to master char list, need to break
+    char.trackers = char.trackers.copy()
+
+    char.trackers['Croc_Bait_char'] = spell.selected_target.create_copy(spell.owner,
+        'Captain Croc Copy')
+
+
+    # when duplicated, need to reassign target to captain croc char
+    if spell.selected_target.owner == None:
+        spell.selected_target = [i for i in spell.owner.hand if i.name == 'Captain Croc'][-1]
+
     spell.selected_target.transform(char, preserve_mods = False)
 
 Croc_Bait = Spell(
@@ -881,20 +894,21 @@ Croc_Bait = Spell(
 )
 
 def Drink_Me_Potion_effect(spell):
-    for i in spell.owner.shop:
+    owner = spell.owner
+    for i in owner.shop:
         i.scrub_buffs(eob_only=False)
         i.owner = None
         if isinstance(i, Character) and i.inshop:
-            spell.owner.game.add_to_char_pool(i)
+            owner.game.add_to_char_pool(i)
 
-    spell.owner.shop = []
+    owner.shop = []
 
-    elig_spell_pool = [i for i in spell.owner.game.spells if i.lvl <= spell.owner.lvl]
-    spell.owner.shop = random.sample(list(elig_spell_pool),6)
+    elig_spell_pool = [i for i in owner.game.spells if i.lvl <= owner.lvl]
+    owner.shop = random.sample(list(elig_spell_pool),6)
 
-    for eff in spell.owner.effects:
+    for eff in owner.effects:
         if isinstance(eff, Shop_Effect):
-            for obj in spell.owner.shop:
+            for obj in owner.shop:
                 eff.apply_effect(obj)
 
 
@@ -903,7 +917,8 @@ Drink_Me_Potion = Spell(
     lvl=6,
     cost = 1,
     effect = Drink_Me_Potion_effect,
-    spell_for_turn = False
+    spell_for_turn = False,
+    ignore_multiplier = True
 )
 
 def Evil_Twin_effect(spell):
@@ -978,19 +993,20 @@ Hugeify = Spell(
 
 def It_Was_All_A_Dream_effect(spell):
 
-    spell.owner.remove_hero()
     # filter to only heroes that have not already been gained by the player
-    legal_heroes = [i for i in self.available_heroes if i not in p.heroes_gained]
+    legal_heroes = [i for i in spell.owner.game.available_heroes if i not in
+        spell.owner.heroes_gained]
     if len(legal_heroes) >=4:
+        spell.owner.remove_hero()
         spell.owner.choose_hero(random.sample(legal_heroes, 4))
 
 # TODO: it was all a dream testing
-# It_Was_All_A_Dream = Spell(
-#     name = 'It Was All A Dream',
-#     lvl = 6,
-#     cost = 4,
-#     effect = It_Was_All_A_Dream_effect
-# )
+It_Was_All_A_Dream = Spell(
+    name = 'It Was All a Dream',
+    lvl = 6,
+    cost = 4,
+    effect = It_Was_All_A_Dream_effect
+)
 
 def Knighthood_effect(spell):
     spell.selected_target.upgraded = True

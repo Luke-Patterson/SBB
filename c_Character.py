@@ -2,6 +2,7 @@ from copy import deepcopy
 from copy import copy
 from Effects import *
 import random
+import collections
 
 class Character:
     def __init__(self, name:str, type, atk, hlth, lvl,  abils=[],
@@ -67,8 +68,10 @@ class Character:
         # track if they died from an attack
         self.death_from_attacking = False
         # tracker for different effects
-        self.trackers = {'Mirror_Mirror_respawn':0, 'Croc_Bait_char':None}
-        self.init_trackers = {'Mirror_Mirror_respawn':0, 'Croc_Bait_char':None}
+        self.trackers = {'Mirror_Mirror_respawn':0, 'Croc_Bait_char':None,
+            'Peter_Pants_pump':0}
+        self.init_trackers = {'Mirror_Mirror_respawn':0, 'Croc_Bait_char':None,
+            'Peter_Pants_pump':0}
 
     def purchase(self, player):
         assert self.owner != None
@@ -82,9 +85,10 @@ class Character:
             print(self.owner, 'purchases', self)
         player.shop.remove(self)
 
-        self.owner.check_for_triggers('purchase', triggering_obj=self)
 
         self.add_to_hand(player)
+
+        self.owner.check_for_triggers('purchase', triggering_obj=self)
 
         # see if there are any effects to apply on purchase
         for eff in player.effects:
@@ -111,7 +115,15 @@ class Character:
         game - if owner is None, passing a game object to use for master_char_list
         '''
         master_obj = [i for i in owner.game.master_char_list if i.name==self.name][0]
+
+        from datetime import datetime
+        start = datetime.now()
         copy = deepcopy(master_obj)
+        end= datetime.now() - start
+        if end.microseconds> 10000:
+            print('unexpectedly long time to make copy, '+ str(end) +
+            ', check for deep copies being made')
+
         if plain_copy==False:
             copy.atk_mod=self.atk_mod
             copy.eob_atk_mod = self.eob_atk_mod
@@ -119,6 +131,7 @@ class Character:
             copy.eob_hlth_mod = self.eob_hlth_mod
             copy.upgraded = False
 
+        copy.trackers = self.trackers
         copy.origin = origin
         copy.inshop=inshop
         copy.owner = owner
@@ -130,12 +143,12 @@ class Character:
         return copy
 
     # TODO: if add to shop, shouldn't count as purchasing
-    def add_to_hand(self, player, store_in_shop=False, transforming = False):
+    def add_to_hand(self, player, store_in_shop=False, transforming = False, dead_player = False):
         assert self.id != None
-        if player.get_hand_len()>=11 and store_in_shop == False and transforming == False:
+        if player.get_hand_len()>=11 and store_in_shop == False and transforming == False and dead_player == False:
             raise "too many objects in owner's hand"
-        # when transforming, it's ok to have one too many objects as one will
-        elif player.get_hand_len()>=12 and store_in_shop == False and transforming:
+        # when transforming/copying dead player, it's ok to have one too many objects as one will
+        elif player.get_hand_len()>=12 and store_in_shop == False and (transforming or dead_player):
             raise "too many objects in owner's hand"
         # go away after this function is finished
         elif player.get_hand_len()>=11 and store_in_shop and transforming==False:
@@ -144,6 +157,7 @@ class Character:
             self.owner = player
             self.set_zone('shop')
             self.current_cost= 0
+            self.scrub_buffs()
             player.next_shop.append(self)
 
         elif player.get_hand_len()>=12 and store_in_shop and transforming:
@@ -152,6 +166,7 @@ class Character:
             self.owner = player
             self.set_zone('shop')
             self.current_cost= 0
+            self.scrub_buffs()
             player.next_shop.append(self)
 
         else:
@@ -163,7 +178,6 @@ class Character:
                 self.owner.quest_chars_gained.append(self.name)
             # add any triggers that are in any of the abilities of the char
             for i in self.abils:
-                #if hasattr(i, 'trigger') and i.trigger.battle_trigger==False:
                 if hasattr(i, 'trigger'):
                     self.owner.triggers.append(i.trigger)
 
@@ -208,6 +222,10 @@ class Character:
             trans_char.eob_atk_mod = self.eob_atk_mod
             trans_char.eob_hlth_mod = self.eob_hlth_mod
 
+        # transfer over trackers if transforming temporarily
+        if temporary or temp_reversion:
+            trans_char.trackers = self.trackers.copy()
+
         if self in self.owner.hand:
             if temporary:
                 # if this is just a temp tranformation, don't return to the char pool
@@ -244,8 +262,8 @@ class Character:
         self.owner.board[position] = self
         self.position = position
         for i in self.abils:
-            if hasattr(i, 'trigger') and i.trigger.battle_trigger:
-                self.owner.battle_triggers.append(i.trigger)
+            # if hasattr(i, 'trigger'):
+            #     self.owner.triggers.append(i.trigger)
 
             if isinstance(i, Global_Static_Effect):
                 self.owner.effects.append(i)
@@ -266,9 +284,11 @@ class Character:
                         char = plyr.board[pos]
                         if char != None and i.condition(char) and i not in char.effects:
                             i.apply_effect(char)
-                            char.eob_reverse_effects.append(i)
 
         self.death_from_attacking = False
+
+
+
 
     # function to remove a character from the board (but not from a player's control)
     def remove_from_board(self, death=False):
@@ -276,12 +296,24 @@ class Character:
         # note last stats prior to death
         self.last_atk = self.atk()
         self.last_hlth = self.hlth()
-
         # position may be none if the unit's been removed from the owner's control
         # as part of the death ability (e.g. Polywoggle slaying)
         self.last_position = self.position
         if self.position != None:
             self.owner.board[self.position] = None
+
+        # if due to death, apply death effects
+        if death and self.position != None:
+            if self.owner == None:
+                self.last_owner.check_for_triggers('die', triggering_obj=self,
+                effect_kwargs={'dead_char':self})
+                self.last_owner.opponent.check_for_triggers('opponent die', triggering_obj=self,
+                effect_kwargs={'dead_char':self})
+            else:
+                self.owner.check_for_triggers('die', triggering_obj=self,
+                effect_kwargs={'dead_char':self})
+                self.owner.opponent.check_for_triggers('opponent die', triggering_obj=self,
+                effect_kwargs={'dead_char':self})
 
         # remove effects from being on field
         for i in self.abils:
@@ -289,10 +321,9 @@ class Character:
             if isinstance(i, Support_Effect):
                 def _remove_support_effect(supported):
                     if supported!=None:
-                        effect = [j for j in supported.eob_reverse_effects if j==i]
+                        effect = [j for j in supported.effects if j==i]
                         if effect != []:
                             effect[0].reverse_effect(supported)
-                            supported.eob_reverse_effects.remove(effect[0])
 
                 if any([i.name == 'Horn of Olympus' for i in self.owner.treasures]):
                     if self.position == 5:
@@ -321,19 +352,6 @@ class Character:
                         _remove_support_effect(self.owner.board[3])
                         _remove_support_effect(self.owner.board[4])
 
-            # if due to death, apply death effects
-            if death and self.position != None:
-                if self.owner == None:
-                    self.last_owner.check_for_triggers('die', triggering_obj=self,
-                        effect_kwargs={'dead_char':self})
-                    self.last_owner.opponent.check_for_triggers('opponent die', triggering_obj=self,
-                        effect_kwargs={'dead_char':self})
-                else:
-                    self.owner.check_for_triggers('die', triggering_obj=self,
-                        effect_kwargs={'dead_char':self})
-                    self.owner.opponent.check_for_triggers('opponent die', triggering_obj=self,
-                        effect_kwargs={'dead_char':self})
-
             if isinstance(i, Global_Static_Effect):
                 self.owner.effects.remove(i)
                 for char in self.owner.board.values():
@@ -344,15 +362,8 @@ class Character:
                 # print(self.owner.board)
 
             # remove any triggers unit uses
-            if self.owner != None:
-                if hasattr(i, 'trigger') and i.trigger.battle_trigger:
-                    self.owner.battle_triggers.remove(i.trigger)
-            # some units (e.g. after Polywoggle slays) will not have an owner
-            # at this point in the process. We'll use their last owner for that
-            else:
-                if hasattr(i, 'trigger') and i.trigger.battle_trigger and i.trigger \
-                    in self.last_owner.battle_triggers:
-                    self.last_owner.battle_triggers.remove(i.trigger)
+            # if hasattr(i, 'trigger') and i in self.get_owner()triggers:
+            #     self.get_owner().triggers.remove(i.trigger)
 
         self.position = None
 
@@ -365,6 +376,16 @@ class Character:
                         if n != 0:
                             self.owner.last_breath_multiplier_used_this_turn = True
 
+        # remove any support effects from self
+        rm_eff = []
+        for eff in self.effects:
+            if isinstance(eff, Support_Effect):
+                eff.reverse_effect(self)
+                rm_eff.append(eff)
+
+        for eff in rm_eff:
+            self.effects.remove(eff)
+
         self.damage_taken = 0
 
     def remove_from_hand(self, return_to_pool=True):
@@ -373,7 +394,9 @@ class Character:
             if hasattr(i, 'trigger'):
                 self.owner.triggers.remove(i.trigger)
             if isinstance(i, Player_Effect):
-                i.reverse_effect(i.source)
+                for _ in range(collections.Counter(self.owner.effects)[i]):
+                    i.reverse_effect(self)
+                    self.owner.effects.remove(i)
 
             # reset counter of any quests to the quest start val
             if isinstance(i, Quest):
@@ -385,25 +408,33 @@ class Character:
                 for i in self.upgrade_copies:
                     self.game.add_to_char_pool(i)
                 self.upgrade_copies = []
+
         self.scrub_buffs(eob_only=False)
         self.last_owner = self.owner
         self.owner = None
         self.set_zone('pool')
 
 
+
     def get_cost(self):
         return self.current_cost
 
     def sell(self):
-        if self.game.verbose_lvl>=2:
-            print(self.owner, 'sells', self)
-        if self.name == 'Golden Chicken' and self.upgraded==False:
-            self.owner.current_gold += 2
-        elif self.name == 'Golden Chicken' and self.upgraded:
-            self.owner.current_gold += 4
-        else:
-            self.owner.current_gold += 1
-        self.remove_from_hand()
+
+        # the transforming prince/princesses can get caught in the options objevt
+        # and this will try to sell them after they've transformed, so we check
+        # for ownership before proceeding
+        if self.owner != None:
+            if self.game.verbose_lvl>=2:
+                print(self.owner, 'sells', self)
+            if self.name == 'Golden Chicken' and self.upgraded==False:
+                self.owner.current_gold += 2
+            elif self.name == 'Golden Chicken' and self.upgraded:
+                self.owner.current_gold += 4
+            else:
+                self.owner.current_gold += 1
+
+            self.remove_from_hand()
 
 
 
@@ -608,8 +639,14 @@ class Character:
 
                         for abil in self.abils:
                             if isinstance(abil, Triggered_Effect) and abil.trigger.type=='slay':
-                                abil.trigger_effect(effect_kwargs={'slain':self.atk_target,
-                                'slain_attribs': orig_attack_target_attribs})
+
+                                # if it's a trophy hunter abil, need to pass appropriate args
+                                if 'Trophy Hunter Slay' in abil.name:
+                                    abil.trigger_effect()
+                                else:
+                                    abil.trigger_effect(effect_kwargs={'slain':self.atk_target,
+                                        'slain_attribs': orig_attack_target_attribs})
+
 
                 owner.check_effects()
                 owner.opponent.check_effects()
@@ -632,6 +669,10 @@ class Character:
             if hasattr(eff, 'eob') and eff.eob:
                 rm_eff.append(eff)
 
+            if isinstance(eff, Support_Effect):
+                eff.reverse_effect(self)
+                rm_eff.append(eff)
+
         for mod in rm_mod:
             self.remove_modifier(mod)
 
@@ -652,7 +693,7 @@ class Character:
             self.upgraded = False
             self.atk_mod = 0
             self.hlth_mod = 0
-            self.trackers = self.init_trackers
+            self.trackers = self.init_trackers.copy()
 
     def add_modifier(self, modifier):
         self.modifiers.append(modifier)
@@ -674,9 +715,11 @@ class Character:
     def change_atk_mod(self, amt):
         if self.name =='Dubly' and amt > 0:
             amt = amt * (2 + self.upgraded)
+        # make sure atk mod not lowered below 0
         self.atk_mod += amt
         if self.name != 'Echowood':
-            self.owner.check_for_triggers('change_mod', effect_kwargs = {'amt':amt, 'type':'atk'})
+            self.get_owner().check_for_triggers('change_mod', effect_kwargs = {'amt':amt, 'type':'atk'})
+        assert self.atk_mod >= 0
 
     def change_hlth_mod(self, amt):
         if self.name =='Dubly' and amt > 0:
@@ -690,14 +733,16 @@ class Character:
         self.dmg_taken = max(0, self.dmg_taken)
 
         if self.name != 'Echowood':
-            self.owner.check_for_triggers('change_mod', effect_kwargs = {'amt':amt, 'type':'hlth'})
+            self.get_owner().check_for_triggers('change_mod', effect_kwargs = {'amt':amt, 'type':'hlth'})
+
+        assert self.hlth_mod >= 0
 
     def change_eob_atk_mod(self, amt):
         if self.name =='Dubly' and amt > 0:
             amt = amt * (2 + self.upgraded)
         self.eob_atk_mod += amt
         if self.name != 'Echowood':
-            self.owner.check_for_triggers('change_mod', effect_kwargs = {'amt':amt, 'type':'atk'})
+            self.get_owner().check_for_triggers('change_mod', effect_kwargs = {'amt':amt, 'type':'atk'})
 
     def change_eob_hlth_mod(self, amt):
         if self.name =='Dubly' and amt > 0:
@@ -710,7 +755,7 @@ class Character:
         self.dmg_taken = max(0, self.dmg_taken)
 
         if self.name != 'Echowood':
-            self.owner.check_for_triggers('change_mod', effect_kwargs = {'amt':amt, 'type':'hlth'})
+            self.get_owner().check_for_triggers('change_mod', effect_kwargs = {'amt':amt, 'type':'hlth'})
 
     def set_zone(self, zone):
         self.zone = zone

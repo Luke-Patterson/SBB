@@ -861,7 +861,7 @@ def Gloves_of_Thieving_trigger_effect(source):
         copy.current_cost = 0
         copy.add_to_hand(source.owner, store_in_shop=True)
         if source.owner.game.verbose_lvl >=3:
-            print('Gloves of Thieving creates', copy,'for',source)
+            print('Gloves of Thieving creates', copy,'for',source.owner)
 
 Gloves_of_Thieving= Treasure(
     name='Gloves of Thieving',
@@ -1173,8 +1173,8 @@ Exploding_Mittens= Treasure(
 )
 
 def Hand_of_Midas_effect(char, source):
-    name_counts = pd.Series([i.name for i in char.owner.hand if i.upgraded==False]).value_counts()
-    if name_counts[char.name] < 3:
+    upgrade_chars = char.owner.check_for_upgrades()[0]
+    if char.name not in upgrade_chars:
         char.upgraded = True
         source.source.owner.discard_treasure(source.source)
 
@@ -1655,10 +1655,12 @@ def Mirror_Mirror_assign_respawn(source):
     for n in range(1,5):
         char = source.owner.board[n]
         if char != None:
+            char.trackers = char.trackers.copy()
             char.trackers['Mirror_Mirror_respawn'] += 1
 
 def Mirror_Mirror_reset_respawn(source):
     for char in source.owner.hand:
+        char.trackers = char.trackers.copy()
         char.trackers['Mirror_Mirror_respawn'] = 0
 
 def Mirror_Mirror_triggered_effect(source, dead_char):
@@ -1670,6 +1672,7 @@ def Mirror_Mirror_triggered_effect(source, dead_char):
         copy.token = True
         copy.base_atk = 1
         copy.base_hlth = 1
+        copy.trackers = copy.trackers.copy()
         copy.trackers['Mirror_Mirror_respawn'] = dead_char.trackers['Mirror_Mirror_respawn'] - 1
         copy.summon(source.owner, spawn_pos)
 

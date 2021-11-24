@@ -12,6 +12,7 @@ import random
 class Game:
     def __init__(self, verbose_lvl=3, seed=None, treasure_test = False, mimic_test=False):
         self.char_pool=[]
+        self.init_char_pool=[]
         self.treasures = []
         self.turn_counter = 0
         self.active_players=[]
@@ -20,15 +21,46 @@ class Game:
         self.verbose_lvl = verbose_lvl
         self.ghosts = []
         self.available_heroes=[]
+        self.game_id = 0
         if seed!=None:
             self.seed=seed
+            self.seed_specified = True
         else:
             self.seed=random.randint(1,10000000000)
+            self.seed_specified = False
         random.seed(self.seed)
+        print('Game Seed:', self.seed)
 
         # testing params
         self.treasure_test = treasure_test
         self.mimic_test = mimic_test
+
+    def reset_game(self):
+        game_id = self.game_id
+        if self.seed_specified:
+            self.__init__(self.verbose_lvl, self.seed, self.treasure_test, self.mimic_test)
+        else:
+            self.__init__(self.verbose_lvl, None, self.treasure_test, self.mimic_test)
+        self.game_id = game_id
+
+        # reset objects
+        self.char_pool = self.orig_char_pool.copy()
+        for i in self.char_pool:
+            old_id = i.id
+            i.__init__(i.name, i.type, i.base_atk, i.base_hlth, i.lvl,i.abils,i.keyword_abils,i.alignment,i.token,i.inshop)
+            i.id = old_id
+            i.game = self
+            i.origin = "game copy"
+        self.available_heroes = self.all_heroes.copy()
+        for i in self.all_heroes:
+            i.owner = None
+
+        for i in self.spells:
+            i.owner = None
+            i.current_cost = i.base_cost
+            i.selected_target = None
+
+        self.load_treasures()
 
     def check_obj_nums(self):
         print('Heroes:', len(self.available_heroes))
@@ -53,8 +85,15 @@ class Game:
         print('Missing Spells:', [i for i in master_spells if i not in engine_spells])
         print('Missing Treasures:', [i for i in master_treasures if i not in engine_treasures])
 
+    def load_objs(self):
+        self.load_hero_list()
+        self.load_char_pool()
+        self.load_treasures()
+        self.load_spells()
+
     # functions for start of the game.
-    def start_game(self,players):
+    def run_game(self,players):
+        self.game_id += 1
         # set up initial states
         self.active_players=players
         self.all_players=players.copy()
@@ -63,10 +102,7 @@ class Game:
             for opp in self.active_players:
                 if opp != p:
                     p.opponent_history.append(opp)
-        self.load_hero_list()
-        self.load_char_pool()
-        self.load_treasures()
-        self.load_spells()
+
         # self.check_obj_nums()
         # self.check_for_missing_objs()
         # import pdb; pdb.set_trace()
@@ -84,7 +120,7 @@ class Game:
     def load_hero_list(self):
         # master_hero_list is from Heroes..py
         self.available_heroes= master_hero_list.copy()
-
+        self.all_heroes= master_hero_list.copy()
     def add_to_char_pool(self, char):
         char.set_zone('pool')
         self.char_pool.append(char)
@@ -111,6 +147,7 @@ class Game:
                         copy_char.origin = "game copy"
                         self.add_to_char_pool(copy_char)
         self.char_universe=copy(self.char_pool)
+        self.orig_char_pool=copy(self.char_pool)
 
     def assign_id(self, char):
         id_num = len([i for i in self.char_universe if i.name==char.name]) + 1
@@ -130,11 +167,7 @@ class Game:
         choices = {}
         for p in self.active_players:
             choices[p] = random.sample(self.available_heroes, 4)
-            for h in choices[p]:
-                self.available_heroes.remove(h)
-            unchosen_heroes = p.choose_hero(choices[p])
-            for h in unchosen_heroes:
-                self.available_heroes.append(h)
+            p.choose_hero(choices[p])
 
             p.life = p.hero.life
 
@@ -159,6 +192,9 @@ class Game:
             print('Entering shop phase')
         for p in self.active_players:
             p.do_shop_phase()
+            if self.verbose_lvl>=4:
+                print(p,'Hand:',p.hand)
+                print(p,'Treasures:',p.treasures)
 
     def init_battle_phase(self):
         if self.verbose_lvl>=1:
@@ -434,7 +470,7 @@ class Game:
             shop_size=5
         if any([i.name == 'Staff of the Old Toad' for i in player.treasures]):
             if player.lvl<=3:
-                elig_pool = [i for i in self.char_pool if i.lvl <= player.lvl and i.lvl>=3]
+                elig_pool = [i for i in self.char_pool if i.lvl == player.lvl]
             else:
                 elig_pool = [i for i in self.char_pool if i.lvl <= player.lvl and i.lvl>=4]
         else:
@@ -449,6 +485,13 @@ class Game:
         if player.hero.name == 'Pied Piper':
             elig_animals = [i for i in self.char_pool if i.lvl <= player.lvl and
                 'Animal' in i.type]
+
+            if any([i.name == 'Staff of the Old Toad' for i in player.treasures]):
+                if player.lvl<=3:
+                    elig_animals = [i for i in elig_animals if i.lvl == player.lvl]
+                else:
+                    elig_animals = [i for i in elig_animals if i.lvl <= player.lvl and i.lvl>=4]
+
             selected = random.choice(elig_animals)
             selected.owner = player
             selected.change_atk_mod(1)
@@ -504,6 +547,13 @@ class Game:
         if player.hero.name == 'Pied Piper':
             elig_animals = [i for i in self.char_pool if i.lvl <= player.lvl and
                 'Animal' in i.type]
+
+            if any([i.name == 'Staff of the Old Toad' for i in player.treasures]):
+                if player.lvl<=3:
+                    elig_animals = [i for i in elig_animals if i.lvl == player.lvl]
+                else:
+                    elig_animals = [i for i in elig_animals if i.lvl <= player.lvl and i.lvl>=4]
+
             selected = random.choice(elig_animals)
             elig_pool.remove(selected)
             if addl_char_num > 0:

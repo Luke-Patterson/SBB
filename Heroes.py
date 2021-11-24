@@ -2,7 +2,7 @@ from c_Hero import Hero
 from copy import deepcopy
 from Effects import *
 from Spells import Knighthood
-#from Spells import It_Was_All_A_Dream
+from Spells import It_Was_All_A_Dream
 from Spells import Kidnap
 import random
 
@@ -353,8 +353,37 @@ Loki = Hero(
 # Mad catter ability is hard coded into player's roll_shop function
 Mad_Catter = Hero(name='Mad Catter')
 
-# TODO: MAsk
-Mask = Hero(name='Mask')
+
+def Mask_effect_func(source):
+    for _ in range(2):
+        if len(source.owner.hand) + len(source.owner.spell_hand) < 11:
+            source.owner.spell_hand.append(It_Was_All_A_Dream)
+
+    source.owner.trackers['Mask_effect_used'] = True
+
+Mask = Hero(name='Mask',
+    abils = [
+        Triggered_Effect(
+            name = 'Mask gain hero effect',
+            effect_func = Mask_effect_func,
+            trigger = Trigger(
+                name = 'Mask gain hero trigger',
+                type = 'gain hero',
+                condition = lambda self, condition_obj: condition_obj.source.owner.lvl >=3
+            )
+        ),
+        Triggered_Effect(
+            name = 'Mask gain hero effect',
+            effect_func = Mask_effect_func,
+            trigger = Trigger(
+                name = 'Mask gain hero trigger',
+                type = 'start of turn',
+                condition = lambda self, condition_obj: condition_obj.source.owner.lvl >=3 \
+                    and condition_obj.source.owner.trackers['Mask_effect_used'] == False
+            )
+        ),
+    ]
+)
 
 def Merlin_cast_effect(source, in_combat):
     if in_combat:
@@ -430,7 +459,6 @@ Mordred = Hero(
 def Morgan_le_Fay_20_life_effect(source):
     source.owner.select_treasure(source.owner.lvl)
     source.owner.trackers['Morgan_le_Fay_20_life_used'] = True
-    import pdb; pdb.set_trace()
 
 def Morgan_le_Fay_5_life_effect(source):
     source.owner.select_treasure(source.owner.lvl)
@@ -552,13 +580,17 @@ Pans_Shadow = Hero(
 
 # Peter Pants level up counter hardcoded into player level_up function
 def Peter_Pants_effect(char):
-     char.change_atk_mod(char.owner.trackers['Peter_Pants_lvl_up_count'])
-     char.change_hlth_mod(char.owner.trackers['Peter_Pants_lvl_up_count'])
+     char.trackers = char.trackers.copy()
+     char.trackers['Peter_Pants_pump'] = char.owner.trackers['Peter_Pants_lvl_up_count']
+     char.change_atk_mod(char.trackers['Peter_Pants_pump'])
+     char.change_hlth_mod(char.trackers['Peter_Pants_pump'])
 
 def Peter_Pants_reverse_effect(char):
-    assert char.owner.hero.name == 'Peter Pants'
-    char.change_atk_mod(-1 * char.owner.trackers['Peter_Pants_lvl_up_count'])
-    char.change_hlth_mod(-1 * char.owner.trackers['Peter_Pants_lvl_up_count'])
+    reduce = char.trackers['Peter_Pants_pump']
+
+    # ensure this doesn't reduce atk_mod below 0
+    char.change_atk_mod(-1 * min(reduce, char.atk_mod))
+    char.change_hlth_mod(-1 * min(reduce, char.hlth_mod))
 
 def Peter_Pants_gain_hero_effect(source):
     if source.owner.lvl < 3:
@@ -612,12 +644,170 @@ Potion_Master = Hero(
 # Beauty alignment altering effect is hardcoded into alignment checks
 Beauty = Hero(name='Beauty')
 
-Pup_the_Magic_Dragon = Hero(name='Pup the Magic Dragon')
-Sad_Dracula = Hero(name='Sad Dracula')
-Sir_Galahad = Hero(name='Sir Galahad')
-Skip_the_Time_Skipper = Hero(name='Skip, the Time Skipper')
-Snow_Angel = Hero(name='Snow Angel')
-The_Cursed_King = Hero(name='The Cursed King')
+Pup_the_Magic_Dragon_Modifier = Modifier(
+    name= 'Pup the Magic dragon Modifier',
+    atk_func = lambda char, atk, source: atk + len([i for i in char.effects if
+        isinstance(i, Support_Effect)]) * 2,
+    hlth_func = lambda char, hlth, source: hlth + len([i for i in char.effects if
+        isinstance(i, Support_Effect)])
+)
+
+Pup_the_Magic_Dragon = Hero(
+    name='Pup the Magic Dragon',
+    abils = [
+        Global_Static_Effect(
+            name = 'Pup the Magic Dragon pump effect',
+            effect_func = lambda char: char.add_modifier(Pup_the_Magic_Dragon_Modifier),
+            reverse_effect_func = lambda char: char.remove_modifier(Pup_the_Magic_Dragon_Modifier),
+            modifier= Pup_the_Magic_Dragon_Modifier
+        )
+    ]
+)
+
+def Sad_Dracula_slay_effect(char):
+
+    def Sad_Dracula_pump_effect(source, slain, slain_attribs):
+        source.change_atk_mod(3)
+
+    Sad_Dracula_buff_effect = Triggered_Effect(
+        name = 'Sad Dracula Buff Effect',
+        effect_func = Sad_Dracula_pump_effect,
+        trigger = Trigger(
+            name='Sad Dracula Buff trigger',
+            type='slay'
+        ),
+    )
+
+    char.abils.append(Sad_Dracula_buff_effect)
+    char.owner.triggers.append(Sad_Dracula_buff_effect.trigger)
+    Sad_Dracula_buff_effect.add_to_obj(char)
+
+
+def Sad_Dracula_reverse_effect(char):
+    rm_eff = [i for i in char.abils if i.name=='Sad Dracula Buff Effect']
+    if rm_eff != []:
+        char.abils.remove(rm_eff[0])
+        if rm_eff[0].trigger in char.get_owner().triggers:
+            char.get_owner().triggers.remove(rm_eff[0].trigger)
+
+Sad_Dracula = Hero(
+    name='Sad Dracula',
+    abils = [
+        Global_Static_Effect(
+            name = 'Sad Dracula slay effect',
+            effect_func = Sad_Dracula_slay_effect,
+            reverse_effect_func = Sad_Dracula_reverse_effect,
+            condition = lambda char: char.position == 1
+        ),
+    ]
+)
+
+def Sir_Galahad_effect(source):
+    for i in source.owner.hand:
+        i.change_atk_mod(1)
+        i.change_hlth_mod(1)
+
+Sir_Galahad = Hero(
+    name='Sir Galahad',
+    abils = [
+        Triggered_Effect(
+            name = 'Sir Galahad effect',
+            effect_func = Sir_Galahad_effect,
+            trigger = Trigger(
+                name = 'Sir Galahad trigger',
+                type = 'gain treasure'
+            )
+        )
+    ]
+)
+
+def Skip_gain_effect(source):
+    source.owner.gain_exp(2)
+    if source.owner.game.turn_counter == 0:
+        source.owner.next_turn_addl_gold -= 2
+
+Skip_the_Time_Skipper = Hero(
+    name='Skip, the Time Skipper',
+    abils = [
+        Triggered_Effect(
+            name = 'Skip, the Time Skipper gain hero effect',
+            effect_func = Skip_gain_effect,
+            trigger = Trigger(
+                name = 'Skip, the Time Skipper trigger',
+                type = 'gain hero'
+            )
+        )
+    ]
+)
+
+def Snow_Angel_effect_counter(source):
+    source.owner.trackers['Snow_Angel_good_chars_bought'] += 1
+
+def Snow_Angel_gain_char_effect(source):
+    chars = [i for i in source.owner.game.char_pool if i.lvl<=source.owner.lvl
+        and i.check_alignment('Good')]
+    selected = random.choice(chars)
+    source.owner.game.char_pool.remove(selected)
+    selected.owner = source.owner
+    selected.change_atk_mod(1)
+    selected.change_hlth_mod(1)
+    selected.add_to_hand(source.owner, store_in_shop=True)
+    if source.owner.game.verbose_lvl>=3:
+        print(source.owner,'gains',selected)
+    source.owner.trackers['Snow_Angel_good_chars_bought'] = 0
+
+Snow_Angel = Hero(
+    name='Snow Angel',
+    abils = [
+        Triggered_Effect(
+            name = 'Snow Angel effect counter',
+            effect_func = Snow_Angel_effect_counter,
+            trigger = Trigger(
+                name = 'Snow Angel counter trigger',
+                type = 'purchase',
+                condition = lambda self, char: char.check_alignment('Good')
+            )
+        ),
+        Triggered_Effect(
+            name = 'Snow Angel gain good char effect',
+            effect_func = Snow_Angel_gain_char_effect,
+            trigger = Trigger(
+                name = 'Snow Angel gain char trigger',
+                type = 'purchase',
+                condition = lambda self, char: char.owner.trackers['Snow_Angel_good_chars_bought'] == 3
+            )
+        )
+    ]
+)
+
+def The_Cursed_King_gold_effect(source):
+    source.owner.next_turn_addl_gold += 1
+
+def The_Cursed_King_damage_effect(source):
+    source.owner.life_loss(3)
+
+The_Cursed_King = Hero(
+    name='The Cursed King',
+    abils = [
+        Triggered_Effect(
+            name = 'The Cursed King gold effect',
+            effect_func = The_Cursed_King_gold_effect,
+            trigger = Trigger(
+                name = 'The Cursed King gold trigger',
+                type = 'start of turn'
+            )
+        ),
+        Triggered_Effect(
+            name = 'The Cursed King damage effect',
+            effect_func = The_Cursed_King_damage_effect,
+            trigger = Trigger(
+                name = 'The Cursed King gold trigger',
+                type = 'end of turn',
+                condition = lambda self, condition_obj: condition_obj.source.owner.spell_purchased_this_turn == False
+            )
+        ),
+    ]
+)
 
 
 The_Fates_Modifier = Modifier(
@@ -638,12 +828,91 @@ The_Fates = Hero(name='The Fates',
     ]
 )
 
-The_Headless_Horseman = Hero(name='The Headless Horseman')
-Trophy_Hunter = Hero(name='Trophy Hunter')
-Wonder_Waddle = Hero(name='Wonder Waddle')
-Xelhua = Hero(name='Xelhua',
-    life = 45
+def The_Headless_Horseman_effect_func(source):
+    for _ in range(3):
+        if len(source.owner.hand) + len(source.owner.spell_hand) < 11:
+            source.owner.spell_hand.append(Kidnap)
+
+The_Headless_Horseman = Hero(
+    name='The Headless Horseman',
+    abils = [
+        Triggered_Effect(
+            name = 'The Headless Horseman gain hero effect',
+            effect_func = The_Headless_Horseman_effect_func,
+            trigger = Trigger(
+                name = 'The Headless Horseman gain hero trigger',
+                type = 'gain hero'
+            )
+        )
+    ]
 )
+
+def Trophy_Hunter_effect(char):
+    for abil in char.abils:
+        if isinstance(abil, Last_Breath_Effect):
+            slay_abil = Triggered_Effect(
+                name = abil.name + ' Trophy Hunter Slay',
+                effect_func = abil.effect_func,
+                trigger = Trigger(
+                    name='Trophy Hunter added slay trigger',
+                    type='slay'
+                )
+            )
+
+            char.abils.append(slay_abil)
+            char.owner.triggers.append(slay_abil.trigger)
+            slay_abil.add_to_obj(char)
+
+def Trophy_Hunter_reverse_effect(char):
+    rm_abils = []
+    for abil in char.abils:
+        if 'Trophy Hunter Slay' in abil.name:
+            rm_abils.append(abil)
+
+    for abil in rm_abils:
+        char.abils.remove(abil)
+        if abil.trigger in char.get_owner().triggers:
+            char.get_owner().triggers.remove(abil.trigger)
+
+Trophy_Hunter = Hero(
+    name='Trophy Hunter',
+    abils = [
+        Global_Static_Effect(
+            name = 'Trophy Hunter effect',
+            effect_func = Trophy_Hunter_effect,
+            reverse_effect_func = Trophy_Hunter_reverse_effect,
+            condition = lambda char: char.position != None
+        )
+    ]
+)
+
+Wonder_Waddle = Hero(
+    name='Wonder Waddle',
+    abils = [
+        Upgrade_Reduce_Effect(
+            name = 'Wonder Waddle upgrade reduce effect',
+            condition = lambda char: 'Animal' in char.type and char.lvl <= 3
+        )
+    ]
+)
+
+def Xelhua_effect(char):
+    char.current_cost = min(3, char.lvl)
+
+def Xelhua_reverse_effect(char):
+    char.current_cost = char.base_cost
+
+Xelhua = Hero(name='Xelhua',
+    life = 45,
+    abils = [
+        Shop_Effect(
+            name = "Xelhua shop effect",
+            char_effect_func = Xelhua_effect,
+            char_reverse_effect_func = Xelhua_reverse_effect,
+        )
+    ]
+)
+
 
 objs=deepcopy(list(locals().keys()))
 master_hero_list=[]

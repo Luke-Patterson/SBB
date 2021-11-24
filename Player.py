@@ -8,7 +8,9 @@ import random
 from Spells import *
 from Characters import *
 import pandas as pd
+import math
 from datetime import datetime
+import collections
 
 class Player:
     def __init__(self, name:str, logic=None):
@@ -16,6 +18,8 @@ class Player:
         self.game = None
         # 1-4 is the front row from left to right, 5-7 is the back row
         self.board={1:None, 2:None, 3:None, 4:None, 5:None, 6:None, 7:None}
+        # tracker for board at start of combat
+        self.starting_board={1:None, 2:None, 3:None, 4:None, 5:None, 6:None, 7:None}
         self.hand=[]
         self.spell_hand=[]
         # track what chars went into hand this turn
@@ -35,13 +39,13 @@ class Player:
         self.obtained_treasures = []
         self.logic=logic
         self.spell_played_this_turn = False
+        self.spell_purchased_this_turn = False
+
         self.opponent = None
         self.last_opponent = None
         self.dead = False
         self.effects=[]
         self.triggers=[]
-        # triggers that are specific to battles
-        self.battle_triggers=[]
         # effects specific to a battle
         self.battle_effects=[]
         # track the dead chars
@@ -75,7 +79,8 @@ class Player:
             'Fallen_Angel_atk_chk': False, 'Fallen_Angel_hlth_chk': False,
             'Royals_upgraded':0, 'Evil_char_purchased_this_turn':False,
             'Peter_Pants_lvl_up_count':0, 'Morgan_le_Fay_20_life_used':False,
-            'Morgan_le_Fay_5_life_used':False}
+            'Morgan_le_Fay_5_life_used':False,'Snow_Angel_good_chars_bought':0,
+            'Mask_effect_used':False}
 
 
     def choose_hero(self, choices):
@@ -83,14 +88,13 @@ class Player:
         hero = self.input_choose(choices, label='hero selection')
 
         # code for testing certain heros
-        force_hero = "Morgan le Fay"
+        force_hero = "Pied Piper"
         if any([i.name ==force_hero for i in choices]):
             hero = [i for i in choices if i.name ==force_hero][0]
 
         self.add_hero(hero)
-        not_chosen = choices
-        not_chosen.remove(hero)
-        return(not_chosen)
+
+        self.game.available_heroes.remove(hero)
 
     def add_hero(self, hero):
         self.hero = hero
@@ -101,6 +105,7 @@ class Player:
 
     def remove_hero(self):
         self.hero.remove_effects()
+        self.game.available_heroes.append(self.hero)
         self.hero.owner = None
         self.hero = None
 
@@ -114,18 +119,20 @@ class Player:
             self.roll_partial_shop()
 
         self.check_for_triggers('start of turn')
-        self.check_for_upgrades()
         self.check_quest_completion()
+        upgrade_chars = self.check_for_upgrades()
+        self.process_upgrades(upgrade_chars[0], upgrade_chars[1])
 
         # reset gold
         if any([i.name=='Piggie Bank' for i in self.treasures]):
-            self.current_gold = self.current_gold + self.start_turn_gold + self.next_turn_addl_gold
+            self.current_gold = math.floor(self.current_gold * 1.2) + self.start_turn_gold + self.next_turn_addl_gold
         else:
             self.current_gold = self.start_turn_gold + self.next_turn_addl_gold
 
         # reset turn-specific trackers
         self.next_turn_addl_gold = 0
         self.spell_played_this_turn = False
+        self.spell_purchased_this_turn = False
         self.chars_dead = []
         self.last_breath_multiplier_used_this_turn = False
 
@@ -200,7 +207,8 @@ class Player:
                 selected.cast(self)
             else:
                 selected.purchase(self)
-                self.check_for_upgrades()
+                upgrade_chars = self.check_for_upgrades()
+                self.process_upgrades(upgrade_chars[0], upgrade_chars[1])
                 self.check_effects()
             self.check_quest_completion()
 
@@ -268,34 +276,43 @@ class Player:
     def deploy_for_battle(self):
         options = self.hand + ['empty']
         for pos in range(1,8):
-            selected = self.input_choose(options, label='position_' + str(pos))
-            if selected != 'empty':
-                selected.add_to_board(plyr=self, position = pos)
-                options.remove(selected)
+            # if dead, follow the last starting board as closely as possible
+            if self.dead:
+                if self.starting_board[pos] == None:
+                    pass
+                elif self.starting_board[pos] in self.hand:
+                    self.starting_board[pos].add_to_board(plyr=self, position = pos)
+
+            else:
+                selected = self.input_choose(options, label='position_' + str(pos))
+                if selected != 'empty':
+                    selected.add_to_board(plyr=self, position = pos)
+                    options.remove(selected)
 
         self.deployed_chars = [i for i in self.board.values() if i != None]
         # apply all effects relevant to the board
         self.apply_board_effects()
+        self.starting_board = self.board.copy()
 
     def apply_board_effects(self):
         # apply support effects
-        def _apply_support_effects(pos, support_pos):
-            if pos != None:
-                for i in pos.abils:
-                    if isinstance(i, Support_Effect):
-                        for j in support_pos:
-                            if j!= None and i.condition(j):
-                                i.apply_effect(j)
-                                j.eob_reverse_effects.append(i)
-
-        if any([i.name == 'Horn of Olympus' for i in self.treasures]):
-            _apply_support_effects(self.board[5],(self.board[1],self.board[2],self.board[3],self.board[4]))
-            _apply_support_effects(self.board[6],(self.board[1],self.board[2],self.board[3],self.board[4]))
-            _apply_support_effects(self.board[7],(self.board[1],self.board[2],self.board[3],self.board[4]))
-        else:
-            _apply_support_effects(self.board[5],(self.board[1],self.board[2]))
-            _apply_support_effects(self.board[6],(self.board[2],self.board[3]))
-            _apply_support_effects(self.board[7],(self.board[3],self.board[4]))
+        # removing because support was already being added elsewhere
+        # def _apply_support_effects(pos, support_pos):
+        #     if pos != None:
+        #         for i in pos.abils:
+        #             if isinstance(i, Support_Effect):
+        #                 for j in support_pos:
+        #                     if j!= None and i.condition(j):
+        #                         i.apply_effect(j)
+        #
+        # if any([i.name == 'Horn of Olympus' for i in self.treasures]):
+        #     _apply_support_effects(self.board[5],(self.board[1],self.board[2],self.board[3],self.board[4]))
+        #     _apply_support_effects(self.board[6],(self.board[1],self.board[2],self.board[3],self.board[4]))
+        #     _apply_support_effects(self.board[7],(self.board[1],self.board[2],self.board[3],self.board[4]))
+        # else:
+        #     _apply_support_effects(self.board[5],(self.board[1],self.board[2]))
+        #     _apply_support_effects(self.board[6],(self.board[2],self.board[3]))
+        #     _apply_support_effects(self.board[7],(self.board[3],self.board[4]))
 
         self.check_effects()
 
@@ -345,7 +362,7 @@ class Player:
 
         self.to_hand_this_turn=[]
 
-        self.check_for_upgrades()
+        #self.check_for_upgrades()
 
         #=================Treasure related functions==============
     def select_treasure(self,lvl, max_lim = 3):
@@ -398,8 +415,8 @@ class Player:
                 #choice = random.choice([i for i in self.game.treasures])
 
         # code to force a treasure to be taken for testing purposes
-        # if lvl == 2 and self.game.mimic_test == False and all([i.name!="The 9th Book of Merlin" for i in self.treasures]):
-        #     choice = [i for i in self.game.treasures if i.name == "The 9th Book of Merlin"][0]
+        if lvl == 2 and self.game.mimic_test == False and all([i.name!="Summoning Portal" for i in self.treasures]):
+            choice = [i for i in self.game.treasures if i.name == "Summoning Portal"][0]
 
         self.gain_treasure(choice)
 
@@ -409,6 +426,7 @@ class Player:
         function for player to gain treasure
         treasure - treasure object to gain
         '''
+        assert treasure.name not in [i.name for i in self.treasures]
 
         treasure_copy = treasure.create_copy()
         self.check_for_triggers('gain treasure')
@@ -460,10 +478,13 @@ class Player:
             for abil in treasure.abils:
 
                 if isinstance(abil, Player_Effect):
-                    abil.reverse_effect(abil.source)
+                    for _ in range(collections.Counter(self.effects)[abil]):
+                        abil.reverse_effect(abil.source)
+                        self.effects.remove(abil)
 
                 elif isinstance(abil, Global_Static_Effect):
-                    self.remove_effect(abil)
+                    for _ in range(collections.Counter(self.effects)[abil]):
+                        self.remove_effect(abil)
 
                 elif isinstance(abil, Treasure_Effect_Multiplier):
                     for eff in treasure.owner.effects:
@@ -473,25 +494,28 @@ class Player:
 
                 elif isinstance(abil, Shop_Effect):
                     for i in self.shop:
-                        abil.reverse_effect(i)
+                        for _ in range(collections.Counter(i.effects)[abil]):
+                            abil.reverse_effect(i)
+                            i.effects.remove(abil)
 
                 if hasattr(abil, 'trigger'):
                     self.triggers.remove(abil.trigger)
 
-                self.effects.remove(abil)
+                if abil in self.effects:
+                    self.effects.remove(abil)
         self.treasures.remove(treasure)
         treasure.last_owner = self
         treasure.owner = None
 
 
+    # get counts
     def check_for_upgrades(self):
-        name_counts = pd.Series([i.name for i in self.hand if i.upgraded==False]).value_counts()
+        name_counts = collections.Counter([i.name for i in self.hand if i.upgraded==False])
 
         # note any characters with three or more copies
-        upgrade_chars = list(name_counts.loc[name_counts>=3].index.values)
-
+        upgrade_chars = [i for i in name_counts if name_counts[i] >= 3]
         # check for any characters that only require two characters
-        if 'Nian, Sea Terror' in name_counts.index:
+        if 'Nian, Sea Terror' in name_counts.keys():
             two_char_check = ['Nian, Sea Terror']
         else:
             two_char_check = []
@@ -506,6 +530,9 @@ class Player:
             if name_counts[name] == 2:
                 upgrade_chars.append(name)
 
+        return [upgrade_chars,two_char_check]
+
+    def process_upgrades(self, upgrade_chars, two_char_check):
         for name in upgrade_chars:
             if self.game.verbose_lvl>=2:
                 print(self,'upgrades',name)
@@ -627,6 +654,7 @@ class Player:
                 # if eff.both_sides and self.opponent != None:
                 #     apply_scope += self.opponent.hand
                 for char in apply_scope:
+
                     if char!= None:
                         if eff not in char.effects and eff.condition(char):
                             char.effects.append(eff)
@@ -635,6 +663,7 @@ class Player:
                         if eff in char.effects and eff.condition(char)==False:
                             char.effects.remove(eff)
                             eff.reverse_effect(char)
+
 
         # check to see if characters have gone
 
@@ -783,28 +812,48 @@ class Player:
 
     # check if dead, if so remove self from game
     def check_for_death(self):
-        start = datetime.now()
         if self.life <= 0:
             if self.game.verbose_lvl>=1:
                 print(self, 'is out of the game')
             self.dead= True
+
+            self.remove_hero()
+
+            No_Hero = Hero(name='No Hero')
+            self.add_hero(No_Hero)
+
+            start = datetime.now()
+
+            # return any chars to the shop
+            for i in self.shop:
+                i.scrub_buffs(eob_only=False)
+
+                i.owner = None
+                if isinstance(i, Character) and i.inshop:
+                    self.game.add_to_char_pool(i)
+
+            self.shop = []
+
             for i in self.hand.copy():
                 owner = i.owner
 
+                # make a copy in case needed for ghost fight
+                # start = datetime.now()
+                char_copy = i.create_copy(owner, 'Ghost Copy')
+                # end= datetime.now() - start
+                # if end.microseconds> 100000:
+                #     print('unexpectedly long time to make copy, '+ str(end) +
+                #     ', check for deep copies being made')
+                #
                 # return a copy to the char pool
                 i.remove_from_hand()
 
-                # make a copy in case needed for ghost fight
-                char_copy = i.create_copy(owner, 'Ghost Copy')
-                char_copy.add_to_hand(owner)
+                char_copy.add_to_hand(owner, dead_player = True)
                 i.scrub_buffs()
                 i.owner = None
+
             self.game.active_players.remove(self)
             self.game.ghosts.append(self)
-            end= datetime.now() - start
-            if end.microseconds> 100000:
-                print('unexpectedly long time to process death, '+ str(end) +
-                    ', check for deep copies being made')
 
     def check_spells_in_shop(self):
         return all(self.spells_in_shop)

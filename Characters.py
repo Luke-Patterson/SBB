@@ -1,7 +1,6 @@
 from c_Character import Character
 from copy import deepcopy
 from Effects import *
-import random
 from datetime import datetime
 
 # general condition for battle only triggered effects from characters
@@ -29,10 +28,10 @@ Baby_Dragon = Character(
 )
 
 def Baby_Root_support_effect(char, source):
-    char.change_hlth_mod(3 * (1+ source.upgraded))
+    char.change_eob_hlth_mod(3 * (1+ source.upgraded))
 
 def Baby_Root_reverse_effect(char, source):
-    char.change_hlth_mod(-3 * (1+ source.upgraded))
+    char.change_eob_hlth_mod(-3 * (1+ source.upgraded))
 
 Baby_Root = Character(
     name='Baby Root',
@@ -148,12 +147,12 @@ Crafty = Character(
 )
 
 def Fanny_support_effect(char, source):
-    char.change_atk_mod(2 * (1+ source.upgraded))
-    char.change_hlth_mod(2 * (1+ source.upgraded))
+    char.change_eob_atk_mod(2 * (1+ source.upgraded))
+    char.change_eob_hlth_mod(2 * (1+ source.upgraded))
 
 def Fanny_reverse_effect(char, source):
-    char.change_atk_mod(-2 * (1+ source.upgraded))
-    char.change_hlth_mod(-2 * (1+ source.upgraded))
+    char.change_eob_atk_mod(-2 * (1+ source.upgraded))
+    char.change_eob_hlth_mod(-2 * (1+ source.upgraded))
 
 Fanny = Character(
     name='Fanny',
@@ -321,10 +320,10 @@ Lonely_Prince = Character(
 
 
 def Mad_Mim_support_effect(char, source):
-    char.hlth_mod += 3 * (1+ source.upgraded)
+    char.change_eob_atk_mod(3 * (1+ source.upgraded))
 
 def Mad_Mim_reverse_effect(char, source):
-    char.hlth_mod -= 3 * (1+ source.upgraded)
+    char.change_eob_atk_mod(-3 * (1+ source.upgraded))
 
 Mad_Mim = Character(
     name='Mad Mim',
@@ -346,11 +345,7 @@ Mad_Mim = Character(
 def Polywoggle_effect(source, slain, slain_attribs):
     elig_pool = [i for i in source.game.char_pool if i.lvl==min(source.owner.lvl+1,6)]
     selected = random.choice(elig_pool)
-    if source.token:
-        selected.token = True
-        source.transform(selected)
-    else:
-        source.transform(selected)
+    source.transform(selected)
 
 Polywoggle = Character(
     name='Polywoggle',
@@ -478,6 +473,8 @@ Brave_Princess = Character(
 
 def Darkwood_Creeper_effect(source, damaged_char):
     damaged_char.change_atk_mod(1 * (1 + source.upgraded))
+    if source not in source.owner.board.values():
+        import pdb; pdb.set_trace()
 
 # Darkwood Creeper
 Darkwood_Creeper = Character(
@@ -493,7 +490,8 @@ Darkwood_Creeper = Character(
             effect_func = Darkwood_Creeper_effect,
             trigger = Trigger(
                 name = 'Darkwood Creeper survive effect trigger',
-                type = 'survive damage'
+                type = 'survive damage',
+                condition = lambda self, condition_obj: self.source.source in self.source.source.owner.board.values()
             )
         )
     ]
@@ -512,12 +510,12 @@ Dubly = Character(
 
 # Good Witch of the North
 def Good_Witch_support_effect(char, source):
-    char.change_atk_mod(2 * (1+ source.upgraded))
-    char.change_hlth_mod(3 * (1 + source.upgraded))
+    char.change_eob_atk_mod(2 * (1+ source.upgraded))
+    char.change_eob_hlth_mod(3 * (1 + source.upgraded))
 
 def Good_Witch_reverse_effect(char, source):
-    char.change_atk_mod(2 * (1+ source.upgraded))
-    char.change_hlth_mod(-3 * (1+ source.upgraded))
+    char.change_eob_atk_mod(2 * (1+ source.upgraded))
+    char.change_eob_hlth_mod(-3 * (1+ source.upgraded))
 
 Good_Witch_of_the_North = Character(
     name='Good Witch of the North',
@@ -649,7 +647,7 @@ Princess_Peep = Character(
     hlth=1,
     alignment='Good',
     lvl=3,
-    type=['Animal'],
+    type=['Princess'],
     abils=[
         Last_Breath_Effect(
             name='Princess Peep Death Effect',
@@ -794,6 +792,12 @@ Romeo = Character(
 def Shadow_Assassin_triggered_effect(source, slain, slayer):
     source.change_atk_mod(1 * (1 + source.upgraded))
 
+def Shadow_Assassin_trigger_cond(self, condition_obj, triggered_obj):
+    result = any([i.trigger.type == 'slay' for i in condition_obj.abils
+        if isinstance(i, Triggered_Effect)]) & (self.source.source in \
+        self.source.source.owner.board.values())
+    return result
+
 Shadow_Assassin = Character(
     name = 'Shadow Assassin',
     lvl=3,
@@ -809,9 +813,7 @@ Shadow_Assassin = Character(
             trigger = Trigger(
                 name='Shadow Assassin Global Slay Effect trigger',
                 type='global slay',
-                condition = lambda self, condition_obj, triggered_obj:
-                    any([i.trigger.type == 'slay' for i in condition_obj.abils
-                    if isinstance(i, Triggered_Effect)])
+                condition = Shadow_Assassin_trigger_cond
             )
         )
     ]
@@ -1029,12 +1031,12 @@ Vainpire = Character(
 
 
 def Wicked_Witch_support_effect(char, source):
-    char.change_atk_mod(3 * (1+ source.upgraded))
-    char.change_hlth_mod(2 * (1 + source.upgraded))
+    char.change_eob_atk_mod(3 * (1+ source.upgraded))
+    char.change_eob_hlth_mod(2 * (1 + source.upgraded))
 
 def Wicked_Witch_reverse_effect(char, source):
-    char.change_atk_mod(-3 * (1+ source.upgraded))
-    char.change_hlth_mod(-2 * (1+ source.upgraded))
+    char.change_eob_atk_mod(-3 * (1+ source.upgraded))
+    char.change_eob_hlth_mod(-2 * (1+ source.upgraded))
 
 Wicked_Witch_of_the_West = Character(
     name='Wicked Witch of the West',
@@ -1189,6 +1191,11 @@ def Court_Wizard_triggered_effect(source, dead_char):
     if dead_char.death_from_attacking:
         source.make_attack()
 
+def Court_Wizard_cond(self, char):
+    result = ('Prince' in char.type or 'Princess' in char.type) & \
+        (self.source.source in self.source.source.owner.board.values())
+    return result
+
 Court_Wizard = Character(
     name = 'Court Wizard',
     atk = 4,
@@ -1204,7 +1211,7 @@ Court_Wizard = Character(
             trigger = Trigger(
                 name='Court Wizard Death Effect trigger',
                 type='die',
-                condition = lambda self, char: 'Prince' in char.type or 'Princess' in char.type
+                condition = Court_Wizard_cond
             )
         )
     ]
@@ -1232,6 +1239,7 @@ Fairy_Godmother = Character(
                 name='Fairy Godmother Death Effect trigger',
                 type='die',
                 condition = lambda self, char: char.check_alignment('Good')
+                    and self.source.source in self.source.source.owner.board.values()
             )
         )
     ]
@@ -1319,8 +1327,8 @@ def Heartwood_Elder_support_effect(char, source):
     buff = 2 * (1 + source.upgraded)
 
     def Heartwood_Elder_effect(source):
-        source.change_atk_mod(buff)
-        source.change_hlth_mod(buff)
+        source.change_eob_atk_mod(buff)
+        source.change_eob_hlth_mod(buff)
 
     Heartwood_Elder_buff_effect = Triggered_Effect(
         name = 'Heartwood Elder Buff Effect',
@@ -1334,7 +1342,6 @@ def Heartwood_Elder_support_effect(char, source):
 
     char.abils.append(Heartwood_Elder_buff_effect)
     char.owner.triggers.append(Heartwood_Elder_buff_effect.trigger)
-    char.owner.battle_triggers.append(Heartwood_Elder_buff_effect.trigger)
     Heartwood_Elder_buff_effect.add_to_obj(char)
 
 def Heartwood_Elder_reverse_effect(char, source):
@@ -1399,7 +1406,8 @@ Hungry_Hungry_Hippocampus = Character(
             trigger = Trigger(
                 name='Hungry Hungry Hippocampus Summon Effect trigger',
                 type='summon',
-                condition = lambda self, char: 'Animal' in char.type
+                condition = lambda self, char: 'Animal' in char.type and
+                    self.source.source in self.source.source.owner.board.values()
             )
         ),
         Player_Effect(
@@ -1424,10 +1432,10 @@ Juliet = Character(
 
 # Lady of the Lake
 def Lady_of_the_Lake_support_effect(char, source):
-    char.hlth_mod += 5 * (1+ source.upgraded)
+    char.change_eob_hlth_mod(5 * (1+ source.upgraded))
 
 def Lady_of_the_Lake_reverse_effect(char, source):
-    char.hlth_mod -= 5 * (1+ source.upgraded)
+    char.change_eob_hlth_mod(-5 * (1+ source.upgraded))
 
 Lady_of_the_Lake = Character(
     name='Lady of the Lake',
@@ -1613,7 +1621,6 @@ def Riverwish_Mermaid_support_effect(char, source):
 
     char.abils.append(Riverwish_Mermaid_buff_effect)
     char.owner.triggers.append(Riverwish_Mermaid_buff_effect.trigger)
-    char.owner.battle_triggers.append(Riverwish_Mermaid_buff_effect.trigger)
     Riverwish_Mermaid_buff_effect.add_to_obj(char)
 
 def Riverwish_Mermaid_reverse_effect(char, source):
@@ -1686,10 +1693,10 @@ Soltak_Ancient = Character(
 
 # Sporko
 def Sporko_support_effect(char, source):
-    char.change_atk_mod(5 * (1+ source.upgraded))
+    char.change_eob_atk_mod(5 * (1+ source.upgraded))
 
 def Sporko_reverse_effect(char, source):
-    char.change_atk_mod(-5 * (1+ source.upgraded))
+    char.change_eob_atk_mod(-5 * (1+ source.upgraded))
 
 Sporko = Character(
     name='Sporko',
@@ -2222,7 +2229,8 @@ Bearstein = Character(
             trigger = Trigger(
                 name='Bearstein Summon Effect trigger',
                 type='summon',
-                condition = lambda self, char: 'Animal' in char.type
+                condition = lambda self, char: 'Animal' in char.type and
+                    self.source.source in self.source.source.owner.board.values()
             )
         )
     ]
@@ -2277,7 +2285,9 @@ Echowood = Character(
             effect_func = Echowood_effect,
             trigger = Trigger(
                 name='Echowood effect trigger',
-                type='change_mod'
+                type='change_mod',
+                # condition is to make sure it only pumps while in combat
+                condition = lambda self, condition_obj: condition_obj.source.owner.opponent != None
             )
         )
     ]
@@ -2371,10 +2381,10 @@ Great_Pumpkin_King = Character(
 
 # Grumblegore
 def Grumblegore_support_effect(char, source):
-    char.change_atk_mod(10 * (1+ source.upgraded))
+    char.change_eob_atk_mod(10 * (1+ source.upgraded))
 
 def Grumblegore_reverse_effect(char, source):
-    char.change_atk_mod(-10 * (1+ source.upgraded))
+    char.change_eob_atk_mod(-10 * (1+ source.upgraded))
 
 Grumblegore = Character(
     name='Grumblegore',
@@ -2499,10 +2509,10 @@ Robin_Wood = Character(
 
 # The Green Knight
 def Green_Knight_support_effect(char, source):
-    char.change_hlth_mod(10 * (1+ source.upgraded))
+    char.change_eob_hlth_mod(10 * (1+ source.upgraded))
 
 def Green_Knight_reverse_effect(char, source):
-    char.change_hlth_mod(-10 * (1+ source.upgraded))
+    char.change_eob_hlth_mod(-10 * (1+ source.upgraded))
 
 Green_Knight = Character(
     name='The Green Knight',
@@ -2539,7 +2549,8 @@ The_Oni_King = Character(
             trigger = Trigger(
                 name='The Oni King attack effect trigger',
                 type='attack',
-                condition = lambda self, char: 'Monster' in char.type
+                condition = lambda self, char: 'Monster' in char.type and
+                    self.source.source in self.source.source.owner.board.values()
             )
         )
     ]

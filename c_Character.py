@@ -72,6 +72,7 @@ class Character:
             'Peter_Pants_pump':0}
         self.init_trackers = {'Mirror_Mirror_respawn':0, 'Croc_Bait_char':None,
             'Peter_Pants_pump':0}
+        self.slay_multiplier = 1
 
     def purchase(self, player):
         assert self.owner != None
@@ -88,17 +89,17 @@ class Character:
 
         self.add_to_hand(player)
 
-        self.owner.check_for_triggers('purchase', triggering_obj=self)
+        self.get_owner().check_for_triggers('purchase', triggering_obj=self)
 
         # see if there are any effects to apply on purchase
         for eff in player.effects:
             if isinstance(eff, Purchase_Effect) and eff.condition(self):
                 eff.apply_effect(eff, self)
 
-        self.owner.current_gold -= self.current_cost
+        self.get_owner().current_gold -= self.current_cost
 
         if 'Dwarf' in self.type:
-            self.owner.dwarves_bought += 1
+            self.get_owner().dwarves_bought += 1
 
 
     def create_copy(self, owner, origin, plain_copy = False, inshop=False):
@@ -171,15 +172,15 @@ class Character:
 
         else:
             self.owner = player
-            self.set_zone(self.owner.hand)
-            self.owner.hand.append(self)
-            self.owner.to_hand_this_turn.append(self)
+            self.set_zone(self.get_owner().hand)
+            self.get_owner().hand.append(self)
+            self.get_owner().to_hand_this_turn.append(self)
             if any([isinstance(i, Quest) for i in self.abils]):
-                self.owner.quest_chars_gained.append(self.name)
+                self.get_owner().quest_chars_gained.append(self.name)
             # add any triggers that are in any of the abilities of the char
             for i in self.abils:
                 if hasattr(i, 'trigger'):
-                    self.owner.triggers.append(i.trigger)
+                    self.get_owner().triggers.append(i.trigger)
 
                 if isinstance(i, Player_Effect):
                     i.apply_effect(source=i.source)
@@ -226,7 +227,7 @@ class Character:
         if temporary or temp_reversion:
             trans_char.trackers = self.trackers.copy()
 
-        if self in self.owner.hand:
+        if self in self.get_owner().hand:
             if temporary:
                 # if this is just a temp tranformation, don't return to the char pool
                 self.remove_from_hand(return_to_pool=False)
@@ -247,26 +248,26 @@ class Character:
 
 
     def summon(self, plyr, position=None):
-        spawn_pos = self.owner.find_next_spawn_position(position)
+        spawn_pos = self.get_owner().find_next_spawn_position(position)
         if spawn_pos != None:
             self.add_to_board(plyr, spawn_pos)
-            self.owner.check_for_triggers('summon',triggering_obj= self,
+            self.get_owner().check_for_triggers('summon',triggering_obj= self,
                 effect_kwargs={'summoned':self})
-            if self.owner.game.verbose_lvl>=3:
+            if self.get_owner().game.verbose_lvl>=3:
                 print(plyr, 'summons', self)
 
 
     def add_to_board(self, plyr, position):
         if self.token:
             self.owner = plyr
-        self.owner.board[position] = self
+        self.get_owner().board[position] = self
         self.position = position
         for i in self.abils:
             # if hasattr(i, 'trigger'):
-            #     self.owner.triggers.append(i.trigger)
+            #     self.get_owner().triggers.append(i.trigger)
 
             if isinstance(i, Global_Static_Effect):
-                self.owner.effects.append(i)
+                self.get_owner().effects.append(i)
 
             if isinstance(i, Support_Effect):
                 if plyr.check_for_treasure('Horn of Olympus') and position in [5,6,7]:
@@ -300,7 +301,7 @@ class Character:
         # as part of the death ability (e.g. Polywoggle slaying)
         self.last_position = self.position
         if self.position != None:
-            self.owner.board[self.position] = None
+            self.get_owner().board[self.position] = None
 
         # if due to death, apply death effects
         if death and self.position != None:
@@ -310,9 +311,9 @@ class Character:
                 self.last_owner.opponent.check_for_triggers('opponent die', triggering_obj=self,
                 effect_kwargs={'dead_char':self})
             else:
-                self.owner.check_for_triggers('die', triggering_obj=self,
+                self.get_owner().check_for_triggers('die', triggering_obj=self,
                 effect_kwargs={'dead_char':self})
-                self.owner.opponent.check_for_triggers('opponent die', triggering_obj=self,
+                self.get_owner().opponent.check_for_triggers('opponent die', triggering_obj=self,
                 effect_kwargs={'dead_char':self})
 
         # remove effects from being on field
@@ -325,41 +326,41 @@ class Character:
                         if effect != []:
                             effect[0].reverse_effect(supported)
 
-                if any([i.name == 'Horn of Olympus' for i in self.owner.treasures]):
+                if any([i.name == 'Horn of Olympus' for i in self.get_owner().treasures]):
                     if self.position == 5:
-                        _remove_support_effect(self.owner.board[1])
-                        _remove_support_effect(self.owner.board[2])
-                        _remove_support_effect(self.owner.board[3])
-                        _remove_support_effect(self.owner.board[4])
+                        _remove_support_effect(self.get_owner().board[1])
+                        _remove_support_effect(self.get_owner().board[2])
+                        _remove_support_effect(self.get_owner().board[3])
+                        _remove_support_effect(self.get_owner().board[4])
                     if self.position == 6:
-                        _remove_support_effect(self.owner.board[1])
-                        _remove_support_effect(self.owner.board[2])
-                        _remove_support_effect(self.owner.board[3])
-                        _remove_support_effect(self.owner.board[4])
+                        _remove_support_effect(self.get_owner().board[1])
+                        _remove_support_effect(self.get_owner().board[2])
+                        _remove_support_effect(self.get_owner().board[3])
+                        _remove_support_effect(self.get_owner().board[4])
                     if self.position == 7:
-                        _remove_support_effect(self.owner.board[1])
-                        _remove_support_effect(self.owner.board[2])
-                        _remove_support_effect(self.owner.board[3])
-                        _remove_support_effect(self.owner.board[4])
+                        _remove_support_effect(self.get_owner().board[1])
+                        _remove_support_effect(self.get_owner().board[2])
+                        _remove_support_effect(self.get_owner().board[3])
+                        _remove_support_effect(self.get_owner().board[4])
                 else:
                     if self.position == 5:
-                        _remove_support_effect(self.owner.board[1])
-                        _remove_support_effect(self.owner.board[2])
+                        _remove_support_effect(self.get_owner().board[1])
+                        _remove_support_effect(self.get_owner().board[2])
                     if self.position == 6:
-                        _remove_support_effect(self.owner.board[2])
-                        _remove_support_effect(self.owner.board[3])
+                        _remove_support_effect(self.get_owner().board[2])
+                        _remove_support_effect(self.get_owner().board[3])
                     if self.position == 7:
-                        _remove_support_effect(self.owner.board[3])
-                        _remove_support_effect(self.owner.board[4])
+                        _remove_support_effect(self.get_owner().board[3])
+                        _remove_support_effect(self.get_owner().board[4])
 
             if isinstance(i, Global_Static_Effect):
-                self.owner.effects.remove(i)
-                for char in self.owner.board.values():
+                self.get_owner().effects.remove(i)
+                for char in self.get_owner().board.values():
                     if char!=None and i in char.effects:
                         i.reverse_effect(char)
                         char.effects.remove(i)
                 # print(self)
-                # print(self.owner.board)
+                # print(self.get_owner().board)
 
             # remove any triggers unit uses
             # if hasattr(i, 'trigger') and i in self.get_owner()triggers:
@@ -370,11 +371,11 @@ class Character:
         # resolve last breath effects after position has been reset
         for i in self.abils:
             if death and isinstance(i, Last_Breath_Effect):
-                for n in range(self.owner.last_breath_multiplier):
-                    if n == 0 or self.owner.last_breath_multiplier_used_this_turn == False:
+                for n in range(self.get_owner().last_breath_multiplier):
+                    if n == 0 or self.get_owner().last_breath_multiplier_used_this_turn == False:
                         i.apply_effect(self)
                         if n != 0:
-                            self.owner.last_breath_multiplier_used_this_turn = True
+                            self.get_owner().last_breath_multiplier_used_this_turn = True
 
         # remove any support effects from self
         rm_eff = []
@@ -389,14 +390,14 @@ class Character:
         self.damage_taken = 0
 
     def remove_from_hand(self, return_to_pool=True):
-        self.owner.hand.remove(self)
+        self.get_owner().hand.remove(self)
         for i in self.abils:
             if hasattr(i, 'trigger'):
-                self.owner.triggers.remove(i.trigger)
+                self.get_owner().triggers.remove(i.trigger)
             if isinstance(i, Player_Effect):
-                for _ in range(collections.Counter(self.owner.effects)[i]):
+                for _ in range(collections.Counter(self.get_owner().effects)[i]):
                     i.reverse_effect(self)
-                    self.owner.effects.remove(i)
+                    self.get_owner().effects.remove(i)
 
             # reset counter of any quests to the quest start val
             if isinstance(i, Quest):
@@ -428,11 +429,11 @@ class Character:
             if self.game.verbose_lvl>=2:
                 print(self.owner, 'sells', self)
             if self.name == 'Golden Chicken' and self.upgraded==False:
-                self.owner.current_gold += 2
+                self.get_owner().current_gold += 2
             elif self.name == 'Golden Chicken' and self.upgraded:
-                self.owner.current_gold += 4
+                self.get_owner().current_gold += 4
             else:
-                self.owner.current_gold += 1
+                self.get_owner().current_gold += 1
 
             self.remove_from_hand()
 
@@ -540,10 +541,15 @@ class Character:
                 self.dies()
                 return True
 
-            else:
+            # pump effects can sometime make survive damage trigger when it shouldn't
+            # so setting a check to ensure it's still on the board
+            elif self.position != None:
                 self.get_owner().check_for_triggers('survive damage', triggering_obj = self,
                     effect_kwargs={'damaged_char':self})
                 return False
+
+            else:
+                return True
                 # for abil in self.abils:
                 #     if isinstance(abil, Triggered_Effect) and abil.trigger.type=='survive damage':
                 #         abil.trigger_effect()
@@ -552,7 +558,7 @@ class Character:
         # only trigger this stuff if object is still on the board
         if self.position != None:
             if self.owner!= None and self.token == False:
-                self.owner.chars_dead.append(self)
+                self.get_owner().chars_dead.append(self)
             elif self.owner== None and self.token == False:
                 self.last_owner.chars_dead.append(self)
 
@@ -579,7 +585,7 @@ class Character:
     def make_attack(self, player = None):
         # Harvest_Moon has been removed
         # hardcoded interaction with harvest moon; note it doesn not interact with mimic
-        # if any([i.name == 'Harvest Moon' for i in self.owner.treasures]) and \
+        # if any([i.name == 'Harvest Moon' for i in self.get_owner().treasures]) and \
         #     any([i.trigger.type == 'slay' for i in self.abils]):
         #     n = 2
         #
@@ -627,25 +633,22 @@ class Character:
                         self.take_damage(self.atk_target.atk(), source = self.atk_target)
 
                     if slay_result:
-                        if self.owner == None:
-                            self.last_owner.check_for_triggers('global slay',
-                            triggering_obj = self, triggered_obj = self.atk_target,
-                            effect_kwargs = {'slain':self.atk_target, 'slayer':self})
-                        else:
-                            self.owner.check_for_triggers('global slay',
+                        for _ in range(self.slay_multiplier):
+                            self.get_owner().check_for_triggers('global slay',
                             triggering_obj = self, triggered_obj = self.atk_target,
                             effect_kwargs = {'slain':self.atk_target, 'slayer':self})
 
 
                         for abil in self.abils:
                             if isinstance(abil, Triggered_Effect) and abil.trigger.type=='slay':
+                                for _ in range(self.slay_multiplier):
 
-                                # if it's a trophy hunter abil, need to pass appropriate args
-                                if 'Trophy Hunter Slay' in abil.name:
-                                    abil.trigger_effect()
-                                else:
-                                    abil.trigger_effect(effect_kwargs={'slain':self.atk_target,
-                                        'slain_attribs': orig_attack_target_attribs})
+                                    # if it's a trophy hunter abil, need to pass appropriate args
+                                    if 'Trophy Hunter Slay' in abil.name:
+                                        abil.trigger_effect()
+                                    else:
+                                        abil.trigger_effect(effect_kwargs={'slain':self.atk_target,
+                                            'slain_attribs': orig_attack_target_attribs})
 
 
                 owner.check_effects()

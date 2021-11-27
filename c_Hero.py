@@ -22,7 +22,7 @@ class Hero:
             for abil in self.abils:
 
                 if isinstance(abil, Treasure_Effect_Multiplier):
-                    for eff in self.owner.effects:
+                    for eff in self.get_owner().effects:
                         if abil not in eff.effects and isinstance(eff, Treasure_Effect_Multiplier) == False \
                         and isinstance(eff.source, Treasure) and abil.condition(eff.source):
                             eff.effects.append(abil)
@@ -32,38 +32,41 @@ class Hero:
                     abil.apply_effect(self)
 
                 elif isinstance(abil, Shop_Effect):
-                    for i in self.owner.shop:
+                    for i in self.get_owner().shop:
                         abil.apply_effect(i)
 
                 if hasattr(abil, 'trigger'):
-                    self.owner.triggers.append(abil.trigger)
+                    self.get_owner().triggers.append(abil.trigger)
 
-                if isinstance(abil, Effect) and abil not in self.owner.effects:
-                    self.owner.effects.append(abil)
+                if isinstance(abil, Effect) and abil not in self.get_owner().effects:
+                    self.get_owner().effects.append(abil)
 
+    def get_owner(self):
+        return self.owner
+        
     def remove_effects(self):
         if self.abils!=None:
             for abil in self.abils:
 
                 if isinstance(abil, Player_Effect):
-                    for _ in range(collections.Counter(self.owner.effects)[abil]):
+                    for _ in range(collections.Counter(self.get_owner().effects)[abil]):
                         abil.reverse_effect(self)
-                        self.owner.effects.remove(abil)
+                        self.get_owner().effects.remove(abil)
 
                 elif isinstance(abil, Global_Static_Effect):
-                    self.owner.remove_effect(abil)
+                    self.get_owner().remove_effect(abil)
 
                 elif isinstance(abil, Shop_Effect):
-                    for i in self.owner.shop:
+                    for i in self.get_owner().shop:
                         for _ in range(collections.Counter(i.effects)[abil]):
                             abil.reverse_effect(i)
                             i.effects.remove(abil)
 
                 if hasattr(abil, 'trigger'):
-                    self.owner.triggers.remove(abil.trigger)
+                    self.get_owner().triggers.remove(abil.trigger)
 
-                if isinstance(abil, Effect) and abil in self.owner.effects:
-                    self.owner.effects.remove(abil)
+                if isinstance(abil, Effect) and abil in self.get_owner().effects:
+                    self.get_owner().effects.remove(abil)
 
     def __repr__(self):
         return self.name

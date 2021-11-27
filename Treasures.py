@@ -29,7 +29,7 @@ Book_of_Heroes = Treasure(
 
 # Bounty Board
 def Bounty_Board_triggered_effect(source, slain, slayer):
-    slayer.owner.next_turn_addl_gold += 1
+    slayer.get_owner().next_turn_addl_gold += 1
 
 Bounty_Board = Treasure(
     name = 'Bounty Board',
@@ -191,8 +191,8 @@ Hermes_Boots = Treasure(
 )
 
 def Jacks_Jumping_Beans_effect(source):
-    if len([i for i in source.owner.board.values() if i!=None])>0:
-        selected = random.choice([i for i in source.owner.board.values() if i!=None])
+    if len([i for i in source.get_owner().board.values() if i!=None])>0:
+        selected = random.choice([i for i in source.get_owner().board.values() if i!=None])
         selected.change_eob_atk_mod(4)
         selected.change_eob_hlth_mod
 
@@ -257,8 +257,8 @@ Needle_Nose_Daggers_Modifier = Modifier(
 )
 
 def Needle_Nose_Daggers_trigger_effect(source):
-    if source.owner.last_combat == 'lost':
-        source.owner.discard_treasure(source)
+    if source.get_owner().last_combat == 'lost':
+        source.get_owner().discard_treasure(source)
 
 Needle_Nose_Daggers = Treasure(
     name='Needle Nose Daggers',
@@ -312,11 +312,11 @@ Piggie_Bank = Treasure(
 
 #Ring of Meteors
 def Ring_of_Meteors_dmg_effect(source):
-    for i in source.owner.board.values():
+    for i in source.get_owner().board.values():
         if i != None:
             i.take_damage(1, source=source)
 
-    for i in source.owner.opponent.board.values():
+    for i in source.get_owner().opponent.board.values():
         if i != None:
             i.take_damage(1, source=source)
 
@@ -346,7 +346,7 @@ Ring_of_Regeneration = Treasure(
                 name = 'Ring of Regeneration Trigger',
                 type = 'end of turn'
             ),
-            effect_func = lambda source: source.owner.life_gain(1)
+            effect_func = lambda source: source.get_owner().life_gain(1)
         )
     ]
 )
@@ -354,7 +354,7 @@ Ring_of_Regeneration = Treasure(
 # Rune Stones
 def Rune_Stones_trigger_effect(source):
     if source.owner != None:
-        source.owner.discard_treasure(source)
+        source.get_owner().discard_treasure(source)
 
 Rune_Stones = Treasure(
     name = 'Rune Stones',
@@ -387,7 +387,7 @@ def Secret_Stash_trigger_effect(source):
         owner.next_turn_addl_gold += 3
         owner.life_gain(3)
         if source.owner != None:
-            source.owner.discard_treasure(source)
+            source.get_owner().discard_treasure(source)
 
 Secret_Stash = Treasure(
     name = 'Secret Stash',
@@ -428,7 +428,7 @@ Shepherds_Sling = Treasure(
 
 #Spinning Wheel
 def Spinning_Wheel_effect(source):
-    source.owner.next_turn_addl_gold += 1
+    source.get_owner().next_turn_addl_gold += 1
 
 Spinning_Wheel = Treasure(
     name="Spinning Wheel",
@@ -446,7 +446,7 @@ Spinning_Wheel = Treasure(
 )
 
 def Ancient_Sarcophagus_triggered_effect(source, dead_char):
-    opp_chars = [i for i in source.owner.opponent.board.values() if i != None]
+    opp_chars = [i for i in source.get_owner().opponent.board.values() if i != None]
     if opp_chars != []:
         selected = random.choice(opp_chars)
         selected.take_damage(3, source=source)
@@ -507,13 +507,12 @@ Cloak_of_the_Assassin= Treasure(
     ]
 )
 
-# # TODO: generate spell only if target spell was bought
 def Crystal_Ball_func(source, targeted):
-    elig_spell_pool = [i for i in source.game.spells if i.lvl <= source.owner.lvl]
+    elig_spell_pool = [i for i in source.game.spells if i.lvl <= source.get_owner().lvl]
     selected = random.choice(list(elig_spell_pool))
-    if len(source.owner.shop) < 7:
-        source.owner.shop.append(selected)
-        for eff in source.owner.effects:
+    if len(source.get_owner().shop) < 7:
+        source.get_owner().shop.append(selected)
+        for eff in source.get_owner().effects:
             if isinstance(eff, Shop_Effect):
                 eff.apply_effect(selected)
 
@@ -564,7 +563,7 @@ def Eye_of_Ares_opp_effect(source):
         reverse_effect_func = lambda self: self.remove_modifier(Eye_of_Ares_Modifier),
         eob=True
     )
-    source.owner.opponent.effects.append(opp_effect)
+    source.get_owner().opponent.effects.append(opp_effect)
 
 Eye_of_Ares= Treasure(
     name='Eye of Ares',
@@ -671,11 +670,11 @@ def Ring_of_Revenge_triggered_effect(source, dead_char):
     if position in pos_map.keys():
         pump_pos = pos_map[position]
         for i in pump_pos:
-            if source.owner.board[i] != None:
-                source.owner.board[i].change_eob_atk_mod(1)
-                source.owner.board[i].change_eob_hlth_mod(1)
+            if source.get_owner().board[i] != None:
+                source.get_owner().board[i].change_eob_atk_mod(1)
+                source.get_owner().board[i].change_eob_hlth_mod(1)
                 if dead_char.game.verbose_lvl>=4:
-                    print(source.owner.board[i],'pumped by', source)
+                    print(source.get_owner().board[i],'pumped by', source)
 
 Ring_of_Revenge = Treasure(
     name = 'Ring of Revenge',
@@ -735,7 +734,7 @@ Tell_Tale_Quiver= Treasure(
 # Treasure Map
 def Treasure_Map_trigger_effect(source):
     if source.owner != None:
-        source.owner.discard_treasure(source)
+        source.get_owner().discard_treasure(source)
 
 Treasure_Map = Treasure(
     name = 'Treasure Map',
@@ -757,7 +756,7 @@ Treasure_Map = Treasure(
 )
 
 def Coin_of_Charron_triggered_effect(source, dead_char):
-    if len(source.owner.chars_dead) <= 1:
+    if len(source.get_owner().chars_dead) <= 1:
         dead_char.change_atk_mod(4)
         dead_char.change_hlth_mod(4)
 
@@ -780,8 +779,8 @@ Coin_of_Charron= Treasure(
 def Deck_of_Many_Things_effect(source):
     Deck_spells = ['Falling Stars','Earthquake', 'Fireball', 'Lightning Bolt', 'Ride of the Valkyries',
         'Blessing of Athena', 'Poison Apple', 'Shrivel', 'Smite','Pigomorph']
-    elig_spells = [i for i in source.owner.game.spells if i.name in Deck_spells
-        and i.lvl <= source.owner.lvl]
+    elig_spells = [i for i in source.get_owner().game.spells if i.name in Deck_spells
+        and i.lvl <= source.get_owner().lvl]
     if elig_spells != []:
         selected = random.choice(elig_spells)
         selected.cast(source.owner, in_combat = True)
@@ -813,7 +812,7 @@ Dwarven_Forge= Treasure(
 )
 
 def Fools_Gold_effect(source):
-    source.owner.next_turn_addl_gold += 4
+    source.get_owner().next_turn_addl_gold += 4
 
 def Fools_Gold_spell_effect(eff, player):
     player.spells_in_shop.append(False)
@@ -855,12 +854,12 @@ Forking_Rod= Treasure(
 
 
 def Gloves_of_Thieving_trigger_effect(source):
-    dead_chars = [i for i in source.owner.last_opponent.chars_dead if i.lvl > 1]
+    dead_chars = [i for i in source.get_owner().last_opponent.chars_dead if i.lvl > 1]
     if dead_chars  != []:
         copy = dead_chars[0].create_copy(source.owner, 'Gloves of Thieving spell effect')
         copy.current_cost = 0
         copy.add_to_hand(source.owner, store_in_shop=True)
-        if source.owner.game.verbose_lvl >=3:
+        if source.get_owner().game.verbose_lvl >=3:
             print('Gloves of Thieving creates', copy,'for',source.owner)
 
 Gloves_of_Thieving= Treasure(
@@ -880,12 +879,12 @@ Gloves_of_Thieving= Treasure(
 
 # Hidden Cache
 def Hidden_Cache_trigger_effect(source):
-    if any([i != None for i in source.owner.board.values()]):
-        selected = random.choice([i for i in source.owner.board.values() if i != None])
+    if any([i != None for i in source.get_owner().board.values()]):
+        selected = random.choice([i for i in source.get_owner().board.values() if i != None])
         selected.change_atk_mod(3)
         selected.change_hlth_mod(3)
     else:
-        source.owner.next_turn_addl_gold += 3
+        source.get_owner().next_turn_addl_gold += 3
 
 Hidden_Cache= Treasure(
     name='Hidden Cache',
@@ -948,11 +947,11 @@ def Other_Hand_of_Vekna_triggered_effect(source, dead_char):
     if position in pos_map.keys():
         pump_pos = pos_map[position]
         for i in pump_pos:
-            if source.owner.board[i] != None:
-                source.owner.board[i].change_eob_atk_mod(1)
-                source.owner.board[i].change_eob_hlth_mod(1)
+            if source.get_owner().board[i] != None:
+                source.get_owner().board[i].change_eob_atk_mod(1)
+                source.get_owner().board[i].change_eob_hlth_mod(1)
                 if dead_char.game.verbose_lvl>=4:
-                    print(source.owner.board[i],'pumped by', source)
+                    print(source.get_owner().board[i],'pumped by', source)
 
 Other_Hand_of_Vekna= Treasure(
     name='Other Hand of Vekna',
@@ -1107,7 +1106,7 @@ def Ambrosia_reverse_effect(char):
     char.upgraded = False
 
 def Ambrosia_effect(source):
-    char = source.owner.board[7]
+    char = source.get_owner().board[7]
     if char != None and char.upgraded == False:
         source.upgraded = True
         copy = Effect(
@@ -1132,7 +1131,7 @@ Ambrosia= Treasure(
 )
 
 def Draculas_Saber_effect(source, dead_char):
-    for i in source.owner.board.values():
+    for i in source.get_owner().board.values():
         if i != None:
             i.change_eob_atk_mod(2)
             i.change_eob_hlth_mod(1)
@@ -1153,7 +1152,7 @@ Draculas_Saber= Treasure(
 )
 
 def Exploding_Mittens_triggered_effect(source, dead_char):
-    opp_chars = [i for i in source.owner.opponent.board.values() if i != None]
+    opp_chars = [i for i in source.get_owner().opponent.board.values() if i != None]
     for char in opp_chars:
         char.take_damage(1, source=source)
 
@@ -1173,10 +1172,10 @@ Exploding_Mittens= Treasure(
 )
 
 def Hand_of_Midas_effect(char, source):
-    upgrade_chars = char.owner.check_for_upgrades()[0]
+    upgrade_chars = char.get_owner().check_for_upgrades()[0]
     if char.name not in upgrade_chars:
         char.upgraded = True
-        source.source.owner.discard_treasure(source.source)
+        source.source.get_owner().discard_treasure(source.source)
 
 Hand_of_Midas= Treasure(
     name='Hand of Midas',
@@ -1198,7 +1197,7 @@ Hand_of_Midas= Treasure(
 # )
 
 def Helm_of_the_Ugly_Gosling_effect(source):
-    chars = [i for i in source.owner.board.values() if i != None]
+    chars = [i for i in source.get_owner().board.values() if i != None]
     if chars != []:
         lowest_atk = min([i.atk() for i in chars])
         lowest_atk_char = [i for i in chars if i.atk()==lowest_atk][0]
@@ -1245,13 +1244,13 @@ Monkeys_Paw_Modifier = Modifier(
 )
 
 def Monkeys_Paw_begin_combat_check(source):
-    if any([i==None for i in source.owner.board.values()]):
+    if any([i==None for i in source.get_owner().board.values()]):
         source.Monkeys_Paw_toggle = True
     else:
         source.Monkeys_Paw_toggle = False
 
 def Monkeys_Paw_cond(char):
-    result = any([i.Monkeys_Paw_toggle for i in char.owner.treasures if i.name == "Monkey's Paw"
+    result = any([i.Monkeys_Paw_toggle for i in char.get_owner().treasures if i.name == "Monkey's Paw"
         and hasattr(i,"Monkeys_Paw_toggle")])
     return result
 
@@ -1327,8 +1326,8 @@ Sword_of_Fire_and_Ice = Treasure(
 def Merlin_9th_Book_Last_Breath_Effect(mage):
     Deck_spells = ['Falling Stars','Earthquake', 'Fireball', 'Lightning Bolt', 'Ride of the Valkyries',
     'Blessing of Athena', 'Poison Apple', 'Shrivel', 'Smite','Pigomorph']
-    elig_spells = [i for i in mage.owner.game.spells if i.name in Deck_spells
-    and i.lvl <= mage.owner.lvl]
+    elig_spells = [i for i in mage.get_owner().game.spells if i.name in Deck_spells
+    and i.lvl <= mage.get_owner().lvl]
     if elig_spells != []:
         selected = random.choice(elig_spells)
         selected.cast(mage.owner, in_combat = True)
@@ -1359,7 +1358,7 @@ The_Ninth_Book_of_Merlin = Treasure(
 )
 
 def Tree_of_Life_triggered_effect(source, dead_char):
-    for i in source.owner.board.values():
+    for i in source.get_owner().board.values():
         if i != None:
             i.change_eob_hlth_mod(i.dmg_taken)
 
@@ -1419,7 +1418,7 @@ Evil_Eye= Treasure(
 )
 
 def Ivory_Owl_effect(source):
-    for i in source.owner.board.values():
+    for i in source.get_owner().board.values():
         if i != None:
             i.change_atk_mod(2)
             i.change_hlth_mod(2)
@@ -1440,19 +1439,19 @@ Ivory_Owl= Treasure(
 )
 
 def Pandoras_Box_effect(source):
-    plyr = source.owner
-    treasures = [i for i in source.owner.game.treasures if i.lvl == 7 and i not in
-        source.owner.treasures and i not in source.owner.obtained_treasures]
+    plyr = source.get_owner()
+    treasures = [i for i in source.get_owner().game.treasures if i.lvl == 7 and i not in
+        source.get_owner().treasures and i not in source.get_owner().obtained_treasures]
     selected = random.choice(treasures)
-    if source.owner.game.verbose_lvl>=2:
-        print(source.owner, 'gains', selected)
+    if source.get_owner().game.verbose_lvl>=2:
+        print(source.get_owner(), 'gains', selected)
     plyr.gain_treasure(selected)
 
-    if len(source.owner.treasures) > 4:
-        remove_choice = source.owner.input_choose(source.owner.treasures, label='treasure remove')
-        if source.owner.game.verbose_lvl>=2:
-            print(source.owner, 'discards', remove_choice)
-        source.owner.discard_treasure(remove_choice)
+    if len(source.get_owner().treasures) > 4:
+        remove_choice = source.get_owner().input_choose(source.get_owner().treasures, label='treasure remove')
+        if source.get_owner().game.verbose_lvl>=2:
+            print(source.get_owner(), 'discards', remove_choice)
+        source.get_owner().discard_treasure(remove_choice)
 
 
 
@@ -1478,9 +1477,9 @@ def Phoenix_Feather_resummon_effect(source, dead_char):
     # check if current position has a token with origin from phoenix feather
     # if so, that means it's the second trigger of phoenix feather (from mimic) and
     # we need to find a new position for the second token
-    if source.owner.board[dead_char.position] != None and \
-        source.owner.board[dead_char.position].origin == 'Phoenix Feather summon':
-        spawn_pos = source.owner.find_next_spawn_position(dead_char.position)
+    if source.get_owner().board[dead_char.position] != None and \
+        source.get_owner().board[dead_char.position].origin == 'Phoenix Feather summon':
+        spawn_pos = source.get_owner().find_next_spawn_position(dead_char.position)
     else:
         spawn_pos = dead_char.position
 
@@ -1491,7 +1490,7 @@ def Phoenix_Feather_resummon_effect(source, dead_char):
         copy.summon(source.owner, spawn_pos)
 
 def Phoenix_Feather_resummon_condition(source, condition_obj):
-    chars = [i for i in source.source.source.owner.board.values() if i != None and i != condition_obj]
+    chars = [i for i in source.source.source.get_owner().board.values() if i != None and i != condition_obj]
     if chars != []:
         highest_atk = max([i.atk() for i in chars])
     else:
@@ -1537,9 +1536,9 @@ Spear_of_Achilles= Treasure(
 
 
 def The_Ark_effect(source):
-    lvls = [i.lvl for i in source.owner.board.values() if i !=None]
+    lvls = [i.lvl for i in source.get_owner().board.values() if i !=None]
     if all([i in lvls for i in range(2,7)]):
-        for i in source.owner.board.values():
+        for i in source.get_owner().board.values():
             if i != None:
                 i.change_eob_atk_mod(12)
                 i.change_eob_hlth_mod(12)
@@ -1653,13 +1652,13 @@ Magic_Sword_100= Treasure(
 
 def Mirror_Mirror_assign_respawn(source):
     for n in range(1,5):
-        char = source.owner.board[n]
+        char = source.get_owner().board[n]
         if char != None:
             char.trackers = char.trackers.copy()
             char.trackers['Mirror_Mirror_respawn'] += 1
 
 def Mirror_Mirror_reset_respawn(source):
-    for char in source.owner.hand:
+    for char in source.get_owner().hand:
         char.trackers = char.trackers.copy()
         char.trackers['Mirror_Mirror_respawn'] = 0
 
@@ -1712,9 +1711,9 @@ Mirror_Mirror= Treasure(
 
 # approximating the limitation of time to roll here
 def The_Holy_Grail_effect(source):
-    source.owner.next_turn_addl_gold += 50
+    source.get_owner().next_turn_addl_gold += 50
     if source.owner != None:
-        source.owner.discard_treasure(source)
+        source.get_owner().discard_treasure(source)
 
 The_Holy_Grail= Treasure(
     name='The Holy Grail',
@@ -1733,7 +1732,7 @@ The_Holy_Grail= Treasure(
 )
 
 def The_Round_Table_effect(source):
-    for i in source.owner.board.values():
+    for i in source.get_owner().board.values():
         if i != None:
             if i.atk() > i.hlth():
                 i.change_eob_hlth_mod(i.atk() - i.hlth())

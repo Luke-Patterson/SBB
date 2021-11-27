@@ -25,6 +25,8 @@ class Spell:
         self.ignore_multiplier = ignore_multiplier
 
 
+    def get_owner(self):
+        return self.owner
     def purchase(self,player):
         player.current_gold -= self.current_cost
         if player.game.verbose_lvl>=2 and self.selected_target == None:
@@ -49,25 +51,25 @@ class Spell:
         self.owner = owner
         if self.target != None:
             self.target.target_select(random_target=random_target)
-            if self.owner.game.verbose_lvl>=3:
+            if self.get_owner().game.verbose_lvl>=3:
                 print(self.owner,'casts',self,'targeting',self.selected_target)
-        elif self.owner.game.verbose_lvl>=3:
+        elif self.get_owner().game.verbose_lvl>=3:
             print(self.owner,'casts',self)
 
         multiplier = 1
-        for abil in self.owner.effects:
+        for abil in self.get_owner().effects:
             if isinstance(abil, Spell_Multiplier):
                 multiplier = abil.apply_effect(spell = self, multiplier=multiplier)
 
         # hardcoded Black Prism effect for targeted spells affected by multipliers
-        if self.target != None and self.owner.check_for_treasure('Black Prism')  \
+        if self.target != None and self.get_owner().check_for_treasure('Black Prism')  \
             and self.ignore_multiplier==False:
-            for char in self.owner.hand:
+            for char in self.get_owner().hand:
                 self.selected_target = char
-                if multiplier != 1 and self.owner.game.verbose_lvl>=3:
+                if multiplier != 1 and self.get_owner().game.verbose_lvl>=3:
                     print(self,'duplicated', multiplier, 'times')
                 for n in range(multiplier):
-                    self.owner.check_for_triggers('cast', cond_kwargs= {'in_combat':in_combat},
+                    self.get_owner().check_for_triggers('cast', cond_kwargs= {'in_combat':in_combat},
                         effect_kwargs= {'in_combat':in_combat})
 
                     # only has effect if first time or multiplier is not ignored
@@ -79,10 +81,10 @@ class Spell:
                     owner.spells_cast_this_game += 1
 
         else:
-            if multiplier != 1 and self.owner.game.verbose_lvl>=3:
+            if multiplier != 1 and self.get_owner().game.verbose_lvl>=3:
                 print(self,'duplicated', multiplier, 'times')
             for n in range(multiplier):
-                self.owner.check_for_triggers('cast', cond_kwargs= {'in_combat':in_combat},
+                self.get_owner().check_for_triggers('cast', cond_kwargs= {'in_combat':in_combat},
                     effect_kwargs= {'in_combat':in_combat})
 
                 # only has effect if first time or multiplier is not ignored
@@ -94,6 +96,8 @@ class Spell:
                 owner.spells_cast_this_game += 1
 
         # clean up
+        if self.purchased:
+            self.owner.names_of_spells_this_turn.append(self.name)
         self.selected_target=None
         self.owner = None
         self.purchased = False

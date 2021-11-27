@@ -8,7 +8,7 @@ import gc
 #g=Game(verbose_lvl=4, seed = 748998327, treasure_test = True, mimic_test = True)
 
 #g=Game(verbose_lvl=4, treasure_test = True)
-g=Game(verbose_lvl=4, seed=978981414, treasure_test = True)
+g=Game(verbose_lvl=4, seed=4772755404, treasure_test = True)
 g.load_objs()
 while True:
 #for _ in range(5):

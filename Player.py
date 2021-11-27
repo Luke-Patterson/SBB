@@ -15,6 +15,7 @@ import collections
 class Player:
     def __init__(self, name:str, logic=None):
         self.name=name
+        self.player_id = None
         self.game = None
         # 1-4 is the front row from left to right, 5-7 is the back row
         self.board={1:None, 2:None, 3:None, 4:None, 5:None, 6:None, 7:None}
@@ -39,11 +40,14 @@ class Player:
         self.obtained_treasures = []
         self.logic=logic
         self.spell_played_this_turn = False
+        self.names_of_spells_this_turn = []
         self.spell_purchased_this_turn = False
 
         self.opponent = None
         self.last_opponent = None
         self.dead = False
+        # final position finished in the game
+        self.game_position = None
         self.effects=[]
         self.triggers=[]
         # effects specific to a battle
@@ -135,7 +139,8 @@ class Player:
         self.spell_purchased_this_turn = False
         self.chars_dead = []
         self.last_breath_multiplier_used_this_turn = False
-
+        self.names_of_spells_this_turn = []
+        
     def do_shop_phase(self):
 
         # obsolete code, chunking it out into choices for individual actions, as too many actions are not independent
@@ -322,7 +327,7 @@ class Player:
         #     self.discard_treasure([i for i in self.treasures if i.name == "Fool's Gold"][0])
         self.gain_exp()
         self.check_for_triggers('end of turn')
-
+        assert self.get_hand_len() <= 11
         # remove all EOB modifiers from every character
         revert_transform = []
         for i in self.hand:
@@ -415,8 +420,8 @@ class Player:
                 #choice = random.choice([i for i in self.game.treasures])
 
         # code to force a treasure to be taken for testing purposes
-        if lvl == 2 and self.game.mimic_test == False and all([i.name!="Summoning Portal" for i in self.treasures]):
-            choice = [i for i in self.game.treasures if i.name == "Summoning Portal"][0]
+        if lvl == 2 and self.game.mimic_test == False and all([i.name!="Helm of the Ugly Gosling" for i in self.treasures]):
+            choice = [i for i in self.game.treasures if i.name == "Helm of the Ugly Gosling"][0]
 
         self.gain_treasure(choice)
 
@@ -445,7 +450,7 @@ class Player:
 
                 # special instructions depending on the type of effect
                 if isinstance(abil, Treasure_Effect_Multiplier):
-                    for eff in treasure_copy.owner.effects:
+                    for eff in treasure_copy.get_owner().effects:
                         if abil not in eff.effects and isinstance(eff, Treasure_Effect_Multiplier) == False \
                         and isinstance(eff.source, Treasure) and abil.condition(eff.source):
                             eff.effects.append(abil)
@@ -487,7 +492,7 @@ class Player:
                         self.remove_effect(abil)
 
                 elif isinstance(abil, Treasure_Effect_Multiplier):
-                    for eff in treasure.owner.effects:
+                    for eff in treasure.get_owner().effects:
                         if abil in eff.effects:
                             eff.effects.remove(abil)
                             abil.reverse_effect(eff)
@@ -581,7 +586,6 @@ class Player:
 
     #================= misc utility functions==============
 
-    # TODO: order triggers of the same type in a set order
     def check_for_triggers(self, type, triggering_obj=None, triggered_obj = None, effect_kwargs = None,
         cond_kwargs = None):
         '''
@@ -594,7 +598,17 @@ class Player:
         to it. This is currently only for slay trigger when a creature is slain
         '''
 
-        for i in self.triggers:
+        # identify triggers of the checked type
+        triggers = [i for i in self.triggers if i.type == type]
+
+        self.resolve_triggers(type, triggers, triggering_obj = triggering_obj,
+            triggered_obj = triggered_obj, effect_kwargs = effect_kwargs,
+            cond_kwargs = cond_kwargs)
+
+    def resolve_triggers(self, type, triggers,triggering_obj=None, triggered_obj = None,
+        effect_kwargs=None, cond_kwargs=None):
+
+        for i in triggers:
             # if object present, check to ensure the condition is met
             if triggering_obj != None:
                 condition_obj = triggering_obj
@@ -604,7 +618,7 @@ class Player:
 
             # types of triggers with triggered objs, and effect kwargs
             if type == 'global slay':
-                if i.type == type and i.condition(i, condition_obj, triggered_obj):
+                if i.condition(i, condition_obj, triggered_obj):
                     if self.game.verbose_lvl>=4:
                         print('triggering',i)
                     i.source.trigger_effect(effect_kwargs)
@@ -612,21 +626,21 @@ class Player:
             # types of triggers with effect kwargs
             elif type in ['die','opponent die', 'survive damage','summon','attack', 'deal damage','attacked',
                 'change_mod','target', 'lose life']:
-                if i.type == type and i.condition(i, condition_obj):
+                if i.condition(i, condition_obj):
                     if self.game.verbose_lvl>=4:
                         print('triggering',i)
                     i.source.trigger_effect(effect_kwargs)
 
             # types of triggers with cond_kwargs
             elif type in ['cast']:
-                if i.type == type and i.condition(i, condition_obj, cond_kwargs['in_combat']):
+                if i.condition(i, condition_obj, cond_kwargs['in_combat']):
                     if self.game.verbose_lvl>=4:
                         print('triggering',i)
                     i.source.trigger_effect(effect_kwargs)
 
             # all other triggers
             else:
-                if i.type == type and i.condition(i, condition_obj):
+                if i.condition(i, condition_obj):
                     if self.game.verbose_lvl>=4:
                         print('triggering',i)
                     i.source.trigger_effect()
@@ -816,6 +830,7 @@ class Player:
             if self.game.verbose_lvl>=1:
                 print(self, 'is out of the game')
             self.dead= True
+            self.game_position = len(self.game.active_players)
 
             self.remove_hero()
 
@@ -915,6 +930,9 @@ class Player:
         print('Board:',self.board)
         print('Treasures:',self.treasures)
         print('Shop:',self.shop)
+
+    def get_board_char_names(self):
+        return [i.name for i in self.board.values() if i != None]
 
     def __repr__(self):
         output = self.name

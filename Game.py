@@ -6,9 +6,54 @@ from Player import *
 from Spells import *
 from copy import deepcopy
 from copy import copy
+from Data_Collector import Data_Collector
 import itertools
 import random
 
+class Game_Batch:
+    def __init__(self):
+        self.data_collector = None
+        self.players = []
+
+    def add_data_collector(self, dc):
+        self.data_collector = dc
+
+    def clear_players(self):
+        self.players = []
+
+    def generate_default_players(self):
+        Player0= Player('Player0')
+        Player1= Player('Player1')
+        Player2= Player('Player2')
+        Player3= Player('Player3')
+        Player4= Player('Player4')
+        Player5= Player('Player5')
+        Player6= Player('Player6')
+        Player7= Player('Player7')
+        self.players=[Player0,Player1,Player2,Player3,Player4,Player5,Player6,Player7]
+
+    # execute a set number of games
+    def execute_game_batch(self, num, show_game_num=True, show_runtime = True, **kwargs):
+        for n in range(num):
+            if show_game_num:
+                print('Game',n,'of',num)
+            g=Game(**kwargs)
+            if self.data_collector != None:
+                g.data_collector = self.data_collector
+                self.data_collector.game = g
+            g.load_objs()
+
+            start = datetime.now()
+
+            self.clear_players()
+            self.generate_default_players()
+            g.run_game(players=self.players)
+
+            if show_runtime:
+                print(datetime.now()-start)
+
+
+# define class for executing a single game
 class Game:
     def __init__(self, verbose_lvl=3, seed=None, treasure_test = False, mimic_test=False):
         self.char_pool=[]
@@ -30,6 +75,7 @@ class Game:
             self.seed_specified = False
         random.seed(self.seed)
         print('Game Seed:', self.seed)
+        self.data_collector = None
 
         # testing params
         self.treasure_test = treasure_test
@@ -37,11 +83,13 @@ class Game:
 
     def reset_game(self):
         game_id = self.game_id
+        data_collector = self.data_collector
         if self.seed_specified:
             self.__init__(self.verbose_lvl, self.seed, self.treasure_test, self.mimic_test)
         else:
             self.__init__(self.verbose_lvl, None, self.treasure_test, self.mimic_test)
         self.game_id = game_id
+        self.data_collector = data_collector
 
         # reset objects
         self.char_pool = self.orig_char_pool.copy()
@@ -96,8 +144,9 @@ class Game:
         self.game_id += 1
         # set up initial states
         self.active_players=players
-        self.all_players=players.copy()
-        for p in self.active_players:
+        self.all_players={n: i for n,i in enumerate(players)}
+        for n, p in enumerate(self.active_players):
+            p.player_id = n
             p.game=self
             for opp in self.active_players:
                 if opp != p:
@@ -115,12 +164,14 @@ class Game:
             p.check_for_triggers('start of game')
         while self.winner==None:
             self.complete_turn()
-        print(self.winner, 'is the winner!')
+        if self.verbose_lvl >= 1:
+            print(self.winner, 'is the winner!')
 
     def load_hero_list(self):
         # master_hero_list is from Heroes..py
         self.available_heroes= master_hero_list.copy()
         self.all_heroes= master_hero_list.copy()
+
     def add_to_char_pool(self, char):
         char.set_zone('pool')
         self.char_pool.append(char)
@@ -199,9 +250,20 @@ class Game:
     def init_battle_phase(self):
         if self.verbose_lvl>=1:
             print('Entering combat')
-        for p in self.all_players:
+        for p in self.all_players.values():
             p.deploy_for_battle()
+
+        for p in self.active_players:
+
+            # collect data on what the starting board of each player looks like
+            if self.data_collector != None:
+                self.data_collector.collect_board_data(p)
+
         self.pair_opponents()
+
+        # fill in results of combat
+        if self.data_collector != None:
+            self.data_collector.backfill_combat_results()
 
     def end_of_turn_effects(self):
         for p in self.active_players:
@@ -214,6 +276,11 @@ class Game:
     def check_for_winner(self):
         if len(self.active_players)==1:
             self.winner=self.active_players[0]
+            self.winner.game_position = 1
+
+            # fill in final position
+            if self.data_collector != None:
+                self.data_collector.backfill_game_results()
 
     # ========================Combat Resolution functions======================
     # function to pair opponents
@@ -302,8 +369,9 @@ class Game:
             print(plyrB,'board:',plyrB.board)
             print(plyrB,'treasures:',plyrB.treasures)
 
-        for p in plyrs:
-            p.check_for_triggers('start of combat')
+        # for p in plyrs:
+        #     p.check_for_triggers('start of combat')
+        self.check_for_simult_triggers('start of combat', first_plyr, sec_plyr)
 
         for p in plyrs:
             p.check_effects()
@@ -403,7 +471,7 @@ class Game:
             first_plyr.board[active_char_1st].make_attack()
 
             if self.combat_check_counter >= 1000:
-                raise 'over 1000 combat loops, possible hole in combat loop detection'
+                raise Exception('over 1000 combat loops, possible hole in combat loop detection')
 
         self.end_combat(plyrA,plyrB)
 
@@ -449,7 +517,7 @@ class Game:
                         all_soltek=True
 
                         all_opp_flying = False
-                        if all([i.flying for i in opp_p.board.values() if i != None]):
+                        if all([(i.flying) or (i.atk()<=0) for i in opp_p.board.values() if i != None]):
                             all_opp_flying = True
                             break_combat = True
 
@@ -457,6 +525,93 @@ class Game:
                 result = True
 
         return result
+
+    # function for checking simultaneous triggers between both players
+    def check_for_simult_triggers(self, type, plyr1, plyr2):
+
+        # define an object that sets the order of priority for each trigger
+        # lower number = resolves sooner.
+        if type == 'start of combat':
+            trigger_priority = {
+                'Ambrosia Effect trigger':1,
+                'Fallen Angel atk check trigger':1,
+                'Fallen Angel hlth check trigger':1,
+                'Shrivel Effect trigger':2,
+                'Ivory Owl trigger':3,
+                'Lordy trigger':3,
+                'Prince Arthur trigger':3,
+                'Heartwood Elder Buff trigger':3,
+                'Ashwood Elm trigger':4,
+                'Shoulder Faeries trigger':5,
+                'Robin Wood trigger':6,
+                'Helm of the Ugly Gosling Effect trigger':6,
+                'The Round Table trigger':7,
+                'other heroes': 8,
+                'other chars': 9,
+                'other treasures':10,
+                'other spells':11,
+                'Lightning Dragon triggered effect':12
+            }
+
+        plyr1_triggers = [i for i in plyr1.triggers if i.type == type]
+        plyr2_triggers = [i for i in plyr2.triggers if i.type == type]
+
+
+        # assign priority to triggers
+        plyr1_priority = {}
+        plyr2_priority = {}
+
+        for trig in plyr1_triggers:
+            if trig.name in trigger_priority.keys():
+                plyr1_priority[trig] = trigger_priority[trig.name]
+
+            # set default priority if not specifically named
+            elif isinstance(trig.source.source, Character):
+                plyr1_priority[trig] = trigger_priority['other chars']
+            elif isinstance(trig.source.source, Treasure):
+                plyr1_priority[trig] = trigger_priority['other treasures']
+            elif isinstance(trig.source.source, Hero):
+                plyr1_priority[trig] = trigger_priority['other heroes']
+            elif isinstance(trig.source.source, Player):
+                plyr1_priority[trig] = trigger_priority['other spells']
+
+        for trig in plyr2_triggers:
+            if trig.name in trigger_priority.keys():
+                plyr2_priority[trig] = trigger_priority[trig.name]
+
+            # set default priority if not specifically named
+            elif isinstance(trig.source.source, Character):
+                plyr2_priority[trig] = trigger_priority['other chars']
+            elif isinstance(trig.source.source, Treasure):
+                plyr2_priority[trig] = trigger_priority['other treasures']
+            elif isinstance(trig.source.source, Hero):
+                plyr2_priority[trig] = trigger_priority['other heroes']
+            elif isinstance(trig.source.source, Player):
+                plyr2_priority[trig] = trigger_priority['other spells']
+
+        # make sure we've assigned a priority to all triggers
+        assert len(plyr1_triggers) == len(plyr1_priority.keys())
+        assert len(plyr2_triggers) == len(plyr2_priority.keys())
+
+        # invert priority dictionary values and keys
+        plyr1_inv_priority = {}
+        for k, v in plyr1_priority.items():
+            if v not in plyr1_inv_priority.keys():
+                plyr1_inv_priority[v] = []
+            plyr1_inv_priority[v].append(k)
+
+        plyr2_inv_priority = {}
+        for k, v in plyr2_priority.items():
+            if v not in plyr2_inv_priority.keys():
+                plyr2_inv_priority[v] = []
+            plyr2_inv_priority[v].append(k)
+
+        # resolve triggers in each priority level in order
+        for i in range(1, max(trigger_priority.values())+1):
+            if i in plyr1_inv_priority.keys():
+                plyr1.resolve_triggers(type, plyr1_inv_priority[i])
+            if i in plyr2_inv_priority.keys():
+                plyr2.resolve_triggers(type, plyr2_inv_priority[i])
 
     # functions for players to call generate a shop
     def generate_shop(self, player, first_shop = False):

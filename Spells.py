@@ -14,17 +14,17 @@ from copy import deepcopy
 import random
 
 def Eenie_Meenie_Miney_Mo_effect(spell):
-    chars = [i for i in spell.owner.shop if isinstance(i, Character)]
+    chars = [i for i in spell.get_owner().shop if isinstance(i, Character)]
     if chars != []:
         selected = random.choice(chars)
-        spell.owner.shop.remove(selected)
+        spell.get_owner().shop.remove(selected)
         selected.change_atk_mod(1)
         selected.change_hlth_mod(1)
-        if spell.owner.game.verbose_lvl>=3:
+        if spell.get_owner().game.verbose_lvl>=3:
             print('Eenie Meenie Miney Mo selects',selected)
         selected.add_to_hand(spell.owner, store_in_shop=True)
     else:
-        if spell.owner.game.verbose_lvl>=3:
+        if spell.get_owner().game.verbose_lvl>=3:
             print('Eenie Meenie Miney Mo has no creatures selects')
 
 
@@ -48,8 +48,8 @@ Free_Roll = Spell(
 )
 
 def Forbidden_Fruit_effect(spell):
-    spell.owner.current_gold +=1
-    spell.owner.life_loss(2)
+    spell.get_owner().current_gold +=1
+    spell.get_owner().life_loss(2)
 
 Forbidden_Fruit = Spell(
     name='Forbidden Fruit',
@@ -89,7 +89,7 @@ For_Glory = Spell(
 )
 
 def Genies_Wish_effect(spell):
-    elig_spells = [i for i in spell.owner.game.spells if i.target==None and i.name!="Genie's Wish"
+    elig_spells = [i for i in spell.get_owner().game.spells if i.target==None and i.name!="Genie's Wish"
         and i.spell_for_turn]
     elig_target_spells = [
         'Magic Research',
@@ -108,7 +108,7 @@ def Genies_Wish_effect(spell):
         'Knighthood',
         'Evil Twin'
     ]
-    elig_spells = elig_spells + [i for i in spell.owner.game.spells if i.name in elig_target_spells]
+    elig_spells = elig_spells + [i for i in spell.get_owner().game.spells if i.name in elig_target_spells]
     # ensure selected spell has legal targets
     while True:
         selected = random.choice(elig_spells)
@@ -133,7 +133,7 @@ Genies_Wish = Spell(
 
 
 def Magic_Research_reverse_effect(source):
-    if source.owner != None and source.owner.last_combat != 'won':
+    if source.owner != None and source.get_owner().last_combat != 'won':
         source.change_atk_mod(-1)
         source.change_hlth_mod(-1)
 
@@ -181,7 +181,7 @@ Shard_of_the_Ice_Queen = Spell(
 )
 
 def Shrink_Spell_effect(spell):
-    for i in spell.owner.shop:
+    for i in spell.get_owner().shop:
         if isinstance(i, Character):
             i.current_cost = max(0, i.current_cost - 1)
 
@@ -241,8 +241,8 @@ Beautys_Influence = Spell(
 )
 
 def Candy_Rain_effect(spell):
-    for char in spell.owner.to_hand_this_turn:
-        if char in spell.owner.hand:
+    for char in spell.get_owner().to_hand_this_turn:
+        if char in spell.get_owner().hand:
             char.change_atk_mod(1)
             char.change_hlth_mod(1)
 
@@ -332,7 +332,7 @@ Gingerbread_Party = Spell(
     name= 'Gingerbread Party',
     lvl=3,
     cost=3,
-    effect = lambda spell: spell.owner.effects.append(
+    effect = lambda spell: spell.get_owner().effects.append(
         Shop_Effect(
             name='Gingerbread Party Effect',
             char_effect_func = Gingerbread_Party_effect,
@@ -345,7 +345,7 @@ Healing_Potion = Spell(
     name='Healing Potion',
     lvl=3,
     cost=1,
-    effect = lambda spell: spell.owner.life_gain(1),
+    effect = lambda spell: spell.get_owner().life_gain(1),
     spell_for_turn = False
 )
 
@@ -396,7 +396,7 @@ Lunas_Grace = Spell(
 
 # Mixawizzle
 def Mixawizzle_effect(spell):
-    elig_chars = [i for i in spell.owner.game.char_pool if i.lvl == min(6, spell.selected_target.lvl + 1)]
+    elig_chars = [i for i in spell.get_owner().game.char_pool if i.lvl == min(6, spell.selected_target.lvl + 1)]
     selected = random.choice(elig_chars)
     spell.selected_target.transform(selected, temporary = True)
 
@@ -448,7 +448,7 @@ Spinning_Gold = Spell(
 )
 
 def True_Loves_Kiss_effect(spell):
-    elig_pool = [i for i in spell.owner.game.char_pool if i.lvl==min(spell.selected_target.lvl+1,6)]
+    elig_pool = [i for i in spell.get_owner().game.char_pool if i.lvl==min(spell.selected_target.lvl+1,6)]
     selected = random.choice(elig_pool)
     spell.selected_target.transform(selected)
 
@@ -467,7 +467,7 @@ Turkish_Delight = Spell(
     name = 'Turkish Delight',
     lvl=3,
     cost=4,
-    effect = lambda spell: spell.owner.gain_exp(1)
+    effect = lambda spell: spell.get_owner().gain_exp(1)
 )
 
 
@@ -478,7 +478,7 @@ def Wish_Upon_A_Star_effect_func(source):
     rm_eff.remove_effect(source)
 
 def Wish_Upon_A_Star_effect(spell):
-    spell.owner.gain_exp(1)
+    spell.get_owner().gain_exp(1)
     effect = Triggered_Effect(
         name = 'Wish Upon a Star Triggered Effect',
         effect_func = Wish_Upon_A_Star_effect_func,
@@ -515,12 +515,12 @@ Worm_Root = Spell(
 )
 
 def Blessing_of_Athena_effect(spell):
-    for i in spell.owner.hand:
+    for i in spell.get_owner().hand:
         i.change_atk_mod(1)
         i.change_hlth_mod(1)
 
 def Blessing_of_Athena_battle_effect(spell):
-    for i in spell.owner.board.values():
+    for i in spell.get_owner().board.values():
         if i!= None:
             i.change_atk_mod(1)
             i.change_hlth_mod(1)
@@ -576,7 +576,7 @@ Cats_Call = Spell(
 )
 
 def Feed_the_Kraken_effect(spell):
-    spell.owner.current_gold += 2
+    spell.get_owner().current_gold += 2
     if spell.selected_target in spell.selected_target.get_owner().hand:
         spell.selected_target.remove_from_hand()
 
@@ -620,13 +620,13 @@ Fireball = Spell(
 )
 
 def Hi_Ho_effect(spell):
-    elig_pool = [i for i in spell.owner.game.char_pool if 'Dwarf' in i.type]
+    elig_pool = [i for i in spell.get_owner().game.char_pool if 'Dwarf' in i.type]
     selected = random.choice(elig_pool)
-    spell.owner.game.char_pool.remove(selected)
-    if spell.owner.game.verbose_lvl>=3:
+    spell.get_owner().game.char_pool.remove(selected)
+    if spell.get_owner().game.verbose_lvl>=3:
         print(spell.owner,'gains',selected,'from Hi Ho!')
     selected.add_to_hand(spell.owner, store_in_shop=True)
-    dwarves = [i for i in spell.owner.hand if 'Dwarf' in i.type]
+    dwarves = [i for i in spell.get_owner().hand if 'Dwarf' in i.type]
     for i in dwarves:
         i.change_atk_mod(1)
         i.change_hlth_mod(1)
@@ -665,15 +665,16 @@ Lightning_Bolt = Spell(
 )
 
 def Masquerade_Ball_effect(spell):
-    lvl_of_shop = [i.lvl for i in spell.owner.shop if isinstance(i, Character)]
-    for i in spell.owner.shop:
+    owner = spell.owner
+    lvl_of_shop = [i.lvl for i in owner.shop if isinstance(i, Character)]
+    for i in owner.shop:
         i.scrub_buffs(eob_only=False)
         i.owner = None
         if isinstance(i, Character) and i.inshop:
-            spell.owner.game.add_to_char_pool(i)
+            owner.game.add_to_char_pool(i)
 
-    spell.owner.shop=[]
-    game = spell.owner.game
+    owner.shop=[]
+    game = owner.game
     lvl_of_shop = [min(6, i+1) for i in lvl_of_shop]
     shop=[]
     for lvl in lvl_of_shop:
@@ -683,14 +684,14 @@ def Masquerade_Ball_effect(spell):
         shop.append(choice)
     for i in shop:
         game.char_pool.remove(i)
-        i.owner = spell.owner
+        i.owner = owner
         i.set_zone('shop')
 
-    spell.owner.shop=shop
+    owner.shop=shop
 
-    for eff in spell.owner.effects:
+    for eff in owner.effects:
         if isinstance(eff, Shop_Effect):
-            for obj in spell.owner.shop:
+            for obj in owner.shop:
                 eff.apply_effect(obj)
 
 Masquerade_Ball = Spell(
@@ -701,7 +702,7 @@ Masquerade_Ball = Spell(
 )
 
 def Merlins_Test_reverse_effect(source):
-    if source.owner != None and source.owner.last_combat != 'won':
+    if source.owner != None and source.get_owner().last_combat != 'won':
         source.change_atk_mod(-4)
         source.change_hlth_mod(-4)
 
@@ -744,7 +745,7 @@ Queens_Grace = Spell(
 
 
 def Ride_of_the_Valkyries_effect(spell):
-    for i in spell.owner.hand:
+    for i in spell.get_owner().hand:
         i.change_eob_atk_mod(3)
 
 Ride_of_the_Valkyries = Spell(
@@ -769,7 +770,7 @@ Stoneskin = Spell(
 )
 
 def The_End_effect(spell):
-    spell.owner.gain_exp(1)
+    spell.get_owner().gain_exp(1)
     if spell.selected_target in spell.selected_target.get_owner().hand:
         spell.selected_target.remove_from_hand()
 
@@ -784,7 +785,7 @@ The_End = Spell(
 )
 
 def Toil_and_Trouble_effect(spell):
-    board_chars = [i for i in spell.owner.board.values() if i != None]
+    board_chars = [i for i in spell.get_owner().board.values() if i != None]
     if len(board_chars)>=2:
         selected = random.sample(board_chars, 2)
     elif len(board_chars)==1:
@@ -803,7 +804,7 @@ Toil_and_Trouble = Spell(
 )
 
 def Lucky_Coin_effect(spell):
-    spell.owner.current_gold += 1
+    spell.get_owner().current_gold += 1
 
 Lucky_Coin = Spell(
     name= 'Lucky Coin',
@@ -867,7 +868,7 @@ Shrivel = Spell(
 # croc bait
 def Croc_Bait_effect(spell):
     char = Captain_Croc.create_copy(spell.owner, 'Captain Croc Spell')
-    if spell.owner.game.verbose_lvl >=4:
+    if spell.get_owner().game.verbose_lvl >=4:
         print(spell, 'creates', char)
 
     # for some reason trackers object is linked to master char list, need to break
@@ -879,7 +880,7 @@ def Croc_Bait_effect(spell):
 
     # when duplicated, need to reassign target to captain croc char
     if spell.selected_target.owner == None:
-        spell.selected_target = [i for i in spell.owner.hand if i.name == 'Captain Croc'][-1]
+        spell.selected_target = [i for i in spell.get_owner().hand if i.name == 'Captain Croc'][-1]
 
     spell.selected_target.transform(char, preserve_mods = False)
 
@@ -994,13 +995,13 @@ Hugeify = Spell(
 def It_Was_All_A_Dream_effect(spell):
 
     # filter to only heroes that have not already been gained by the player
-    legal_heroes = [i for i in spell.owner.game.available_heroes if i not in
-        spell.owner.heroes_gained]
+    legal_heroes = [i for i in spell.get_owner().game.available_heroes if i not in
+        spell.get_owner().heroes_gained]
     if len(legal_heroes) >=4:
-        spell.owner.remove_hero()
-        spell.owner.choose_hero(random.sample(legal_heroes, 4))
+        spell.get_owner().remove_hero()
+        spell.get_owner().choose_hero(random.sample(legal_heroes, 4))
 
-# TODO: it was all a dream testing
+
 It_Was_All_A_Dream = Spell(
     name = 'It Was All a Dream',
     lvl = 6,

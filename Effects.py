@@ -110,7 +110,7 @@ class Player_Effect(Effect):
     def apply_effect(self, source):
         for _ in range(self.multiplier):
             self.effect_func(self, source.owner)
-            source.owner.effects.append(self)
+            source.get_owner().effects.append(self)
 
     def reverse_effect(self, source):
         self.reverse_effect_func(self, source.owner)
@@ -121,13 +121,13 @@ class Player_Effect(Effect):
     def increment_effect_multiplier(self):
         self.multiplier += 1
         self.effect_func(self, self.source.owner)
-        self.source.owner.effects.append(self)
+        self.source.get_owner().effects.append(self)
 
     def decrease_effect_multiplier(self):
         self.multiplier -= 1
         assert self.multiplier != 0
         self.reverse_effect_func(self, self.source.owner)
-        self.source.owner.effects.remove(self)
+        self.source.get_owner().effects.remove(self)
 
 # Effect that provides a support bonus for supporting characters
 # Effect is added to a character object's abil attribute
@@ -139,7 +139,7 @@ class Support_Effect(Effect):
         self.type='Support Effect'
 
     def apply_effect(self, char):
-        for _ in range(char.owner.support_effects_multiplier):
+        for _ in range(char.get_owner().support_effects_multiplier):
             self.effect_func(char, self.source)
             char.effects.append(self)
 
@@ -148,7 +148,7 @@ class Support_Effect(Effect):
     # update: don't need to use multiplier as a copy of the effect is added
     # for each multiplier and reverse_effect is called for each copy
     def reverse_effect(self, char):
-        # for _ in range(char.owner.support_effects_multiplier):
+        # for _ in range(char.get_owner().support_effects_multiplier):
         self.reverse_effect_func(char, self.source)
 
 # Effect that occurs on a character's death
@@ -210,13 +210,13 @@ class Local_Static_Effect(Effect):
     def increment_effect_multiplier(self):
         self.multiplier += 1
         self.effect_func(self)
-        self.source.owner.effects.append(self)
+        self.source.get_owner().effects.append(self)
 
     def decrease_effect_multiplier(self):
         self.multiplier -= 1
         assert self.multiplier != 0
         self.reverse_effect_func(self)
-        self.source.owner.effects.remove(self)
+        self.source.get_owner().effects.remove(self)
 
 
 # Static effects that will affect all characters a player has (with conditions)
@@ -246,8 +246,8 @@ class Global_Static_Effect(Effect):
     # effect accordingly
     def increment_effect_multiplier(self):
         self.multiplier += 1
-        self.source.owner.effects.append(self)
-        for char in self.source.owner.hand:
+        self.source.get_owner().effects.append(self)
+        for char in self.source.get_owner().hand:
             if self in char.effects:
                 self.effect_func(char)
 
@@ -255,8 +255,8 @@ class Global_Static_Effect(Effect):
     def decrease_effect_multiplier(self):
         self.multiplier -= 1
         assert self.multiplier != 0
-        self.source.owner.effects.remove(self)
-        for char in self.source.owner.hand:
+        self.source.get_owner().effects.remove(self)
+        for char in self.source.get_owner().hand:
             if self in char.effects:
                 self.reverse_effect_func(char)
 
@@ -302,8 +302,8 @@ class Shop_Effect(Effect):
     # effect accordingly
     def increment_effect_multiplier(self):
         self.multiplier += 1
-        self.source.owner.effects.append(self)
-        for obj in self.source.owner.shop:
+        self.source.get_owner().effects.append(self)
+        for obj in self.source.get_owner().shop:
             if self in obj.effects:
                 if self.char_effect_func != None and obj.__class__.__name__=='Character' and self.condition(obj):
                     self.char_effect_func(obj)
@@ -313,8 +313,8 @@ class Shop_Effect(Effect):
     def decrease_effect_multiplier(self):
         self.multiplier -= 1
         assert self.multiplier != 0
-        self.source.owner.effects.remove(self)
-        for obj in self.source.owner.shop:
+        self.source.get_owner().effects.remove(self)
+        for obj in self.source.get_owner().shop:
             if self in obj.effects:
                 if self.char_reverse_effect_func != None and obj.__class__.__name__=='Character':
                     self.char_reverse_effect_func(obj)
@@ -360,7 +360,7 @@ class Triggered_Effect(Effect):
             # for treasures with counters, remove them when they hit zero
             if self.counter != None and isinstance(self.source, Treasure) \
                 and self.source.owner != None:
-                self.source.owner.discard_treasure(self.source)
+                self.source.get_owner().discard_treasure(self.source)
 
 
         elif self.counter != None:
@@ -398,14 +398,14 @@ class Quest(Triggered_Effect):
         self.source.upgraded = True
 
         selected_lvl = self.source.lvl
-        if self.source.owner.check_for_treasure('Noble Steed'):
+        if self.source.get_owner().check_for_treasure('Noble Steed'):
             selected_lvl += 1
-            if self.source.owner.check_for_treasure('Mimic'):
+            if self.source.get_owner().check_for_treasure('Mimic'):
                 selected_lvl += 1
-            if self.source.owner.hero.name == 'Celestial Tiger':
+            if self.source.get_owner().hero.name == 'Celestial Tiger':
                 selected_lvl += 1
 
-        self.source.owner.select_treasure(selected_lvl)
+        self.source.get_owner().select_treasure(selected_lvl)
         self.finish_effect_resolved = True
 
     # args added so the function can handle triggers with effect kwargs
@@ -499,25 +499,25 @@ class Target:
 
     def target_select(self, random_target):
         legal_targets = []
-        for i in self.source.owner.hand:
+        for i in self.source.get_owner().hand:
             if self.condition(i):
                 legal_targets.append(i)
         if random_target:
             self.source.selected_target = random.choice(legal_targets)
         else:
-            self.source.selected_target = self.source.owner.input_choose(legal_targets)
+            self.source.selected_target = self.source.get_owner().input_choose(legal_targets)
 
         # only check for target triggers if the spell was purchased
         if self.source.purchased:
-            self.source.owner.check_for_triggers('target', triggering_obj = self.source.selected_target,
+            self.source.get_owner().check_for_triggers('target', triggering_obj = self.source.selected_target,
                 effect_kwargs={'targeted':self.source.selected_target})
 
         # hard coded hack to get sleeping princess' transform to transfer the
         # target of the spell to the transformed Awakened Princess.
         if self.source.purchased and self.source.selected_target.name == 'Sleeping Princess':
             # the last object in the owner's hand should be the transformed princess
-            assert self.source.owner.hand[-1].name == 'Awakened Princess'
-            self.source.selected_target = self.source.owner.hand[-1]
+            assert self.source.get_owner().hand[-1].name == 'Awakened Princess'
+            self.source.selected_target = self.source.get_owner().hand[-1]
 
     def check_for_legal_targets(self, plyr):
         legal_targets = []

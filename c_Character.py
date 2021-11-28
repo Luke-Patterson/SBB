@@ -121,7 +121,7 @@ class Character:
         start = datetime.now()
         copy = deepcopy(master_obj)
         end= datetime.now() - start
-        if end.microseconds> 10000:
+        if end.microseconds> 100000:
             print('unexpectedly long time to make copy, '+ str(end) +
             ', check for deep copies being made')
 
@@ -722,7 +722,9 @@ class Character:
         self.atk_mod += amt
         if self.name != 'Echowood':
             self.get_owner().check_for_triggers('change_mod', effect_kwargs = {'amt':amt, 'type':'atk'})
-        assert self.atk_mod >= 0
+        if self.atk_mod < 0:
+            print('Warning: atk_mod is negative')
+            self.atk_mod = 0
 
     def change_hlth_mod(self, amt):
         if self.name =='Dubly' and amt > 0:
@@ -738,7 +740,10 @@ class Character:
         if self.name != 'Echowood':
             self.get_owner().check_for_triggers('change_mod', effect_kwargs = {'amt':amt, 'type':'hlth'})
 
-        assert self.hlth_mod >= 0
+        # assert self.hlth_mod >= 0
+        if self.hlth_mod < 0:
+            print('Warning: hlth_mod is negative')
+            self.hlth_mod = 0
 
     def change_eob_atk_mod(self, amt):
         if self.name =='Dubly' and amt > 0:

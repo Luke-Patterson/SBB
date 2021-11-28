@@ -1,6 +1,7 @@
 import time
 import pandas as pd
 import pickle
+import scipy
 import scipy.sparse as sp
 import numpy as np
 from Characters import master_char_list
@@ -88,8 +89,7 @@ class Data_Collector:
             +['Final_Position_numeric']
 
 
-        self.all_data['board'] = Labeled_Matrix(self.board_features['index_cols'] +
-            self.board_features['all'] + self.board_features['outcome_cols'])
+        self.all_data['board'] = None
 
         self.current_turn_data['board'] = np.array([])
         self.current_game_data['board'] = np.array([])
@@ -153,8 +153,16 @@ class Data_Collector:
                     else:
                         rec['Final_Position_'+str(i)] = 0
                 rec['Final_Position_numeric'] = player.game_position
-            self.all_data['board'].data = np.append(self.all_data['board'].data,
-                self.current_game_data['board'])
+
+            # convert current_game_data into a sparse matrix and append to all data
+            df = pd.DataFrame([i.values() for i in self.current_game_data['board']])
+            raw_data = sp.csr_matrix(df.values)
+            if self.all_data['board'] == None:
+                self.all_data['board'] = raw_data
+            else:
+                self.all_data['board'] = scipy.sparse.vstack([self.all_data['board'],
+                    raw_data])
+
             self.current_game_data['board'] = np.array([])
 
             if self.game_id % self.save_interval == 0:
@@ -162,17 +170,17 @@ class Data_Collector:
 
     # export data as a pickled np matrix and or csv
     def export_data(self, data_type):
-
-        df = pd.DataFrame([i.values() for i in self.all_data[data_type].data])
-
-        # save as pickle
-        # convert to sparse matrix
-        sm = sp.csr_matrix(df.values)
-        pickle.dump(sm, open(self.folder+ self.filename+"_data.p", "wb" ) )
-        pickle.dump(self.all_data[data_type].col_labels, open( self.folder +
+        pickle.dump(self.all_data[data_type], open(self.folder+
+            self.filename+"_data.p", "wb" ) )
+        pickle.dump(self.board_features['index_cols'] +
+            self.board_features['all'] +
+            self.board_features['outcome_cols'], open( self.folder +
             self.filename+"_column_names.p", "wb" ) )
 
         # save as csv
         if self.csv:
-            df.columns = self.all_data[data_type].col_labels.keys()
+            df = pd.DataFrame.sparse.from_spmatrix(self.all_data[data_type])
+            df.columns = self.board_features['index_cols'] + \
+                self.board_features['all'] + \
+                self.board_features['outcome_cols']
             df.to_csv(self.folder+self.filename+'.csv', index = False)

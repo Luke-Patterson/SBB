@@ -20,6 +20,8 @@ Book_of_Heroes = Treasure(
                 name='Book of Heroes Global Slay Effect trigger',
                 type='global slay',
                 condition = lambda self, condition_obj, triggered_obj:
+                    triggered_obj != None and
+                    condition_obj != None and 
                     condition_obj.check_alignment('Good') and
                     triggered_obj.check_alignment('Evil')
             )

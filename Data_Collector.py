@@ -16,7 +16,9 @@ class Labeled_Matrix:
 
 class Data_Collector:
 
-    def __init__(self, game = None):
+    def __init__(self, game = None, save_interval = 1000,
+        filename = 'training data '+time.strftime("%Y%m%d-%H%M%S"),
+        folder = 'output/', csv = False):
         self.position_decision_collect = False
         self.purchase_decision_collect = False
         self.board_collect = False
@@ -26,7 +28,10 @@ class Data_Collector:
         self.current_game_data = {}
         self.all_data = {}
         self.game_id = 0
-
+        self.save_interval = save_interval
+        self.filename = filename
+        self.folder = folder
+        self.csv=csv
 
     # start collecting data on the starting board of each combat
     def init_board_collect(self):
@@ -134,6 +139,8 @@ class Data_Collector:
                 self.current_turn_data['board'])
             self.current_turn_data['board'] = np.array([])
 
+
+
     # backfill which position each player finished in
     def backfill_game_results(self):
         self.game_id += 1
@@ -150,21 +157,22 @@ class Data_Collector:
                 self.current_game_data['board'])
             self.current_game_data['board'] = np.array([])
 
+            if self.game_id % self.save_interval == 0:
+                self.export_data('board')
+
     # export data as a pickled np matrix and or csv
-    def export_data(self, data_type, filename = 'training data '+time.strftime("%Y%m%d-%H%M%S"),
-        folder = 'output/', pickle_fmt = True, csv_fmt = False):
+    def export_data(self, data_type):
 
         df = pd.DataFrame([i.values() for i in self.all_data[data_type].data])
 
         # save as pickle
-        if pickle_fmt:
-            # convert to sparse matrix
-            sm = sp.csr_matrix(df.values)
-            pickle.dump(sm, open(folder+ filename+"_data.p", "wb" ) )
-            pickle.dump(self.all_data[data_type].col_labels, open( folder +
-                filename+"_column_names.p", "wb" ) )
+        # convert to sparse matrix
+        sm = sp.csr_matrix(df.values)
+        pickle.dump(sm, open(self.folder+ self.filename+"_data.p", "wb" ) )
+        pickle.dump(self.all_data[data_type].col_labels, open( self.folder +
+            self.filename+"_column_names.p", "wb" ) )
 
         # save as csv
-        if csv_fmt:
+        if self.csv:
             df.columns = self.all_data[data_type].col_labels.keys()
-            df.to_csv(folder+filename+'.csv', index = False)
+            df.to_csv(self.folder+self.filename+'.csv', index = False)

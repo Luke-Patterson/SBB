@@ -97,7 +97,7 @@ class Spell:
 
         # clean up
         if self.purchased:
-            self.owner.names_of_spells_this_turn.append(self.name)
+            owner.names_of_spells_this_turn.append(self.name)
         self.selected_target=None
         self.owner = None
         self.purchased = False

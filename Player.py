@@ -140,7 +140,7 @@ class Player:
         self.chars_dead = []
         self.last_breath_multiplier_used_this_turn = False
         self.names_of_spells_this_turn = []
-        
+
     def do_shop_phase(self):
 
         # obsolete code, chunking it out into choices for individual actions, as too many actions are not independent
@@ -192,7 +192,8 @@ class Player:
                         except IndexError:
                             pass
 
-            if self.logic!=None or len(self.hand)+len(self.spell_hand)==11:
+            if (self.logic!=None and self.logic.purchase_toggle) \
+                or len(self.hand)+len(self.spell_hand)==11:
                 options = options + sell_options
             selected = self.input_choose(options)
             for i in options:
@@ -879,8 +880,8 @@ class Player:
     # Yes/No input
     def input_bool(self,label=None,obj=None):
         decision=self.rand_decisions([True, False])
-        if self.logic!=None:
-            decision=self.logic.input_bool(player=self,obj=obj,decision=decision,label=label)
+        # if self.logic!=None:
+        #    decision=self.logic.input_bool(player=self,obj=obj,decision=decision,label=label)
         return(decision)
 
     # choose from list
@@ -894,9 +895,9 @@ class Player:
             decision=self.rand_decisions(choices, np.random.randint(0,len(choices)+1))
         else:
             decision=self.rand_decisions(choices, n)
-        if self.logic!=None:
-            decision=self.logic.input_choose(player=self,decision=decision,
-                choices=choices, label=label,n=n)
+        # if self.logic!=None:
+        #     decision=self.logic.input_choose(player=self,decision=decision,
+        #         choices=choices, label=label,n=n)
 
         if squeeze==False and isinstance(decision, list)==False:
             decision=[decision]
@@ -905,9 +906,9 @@ class Player:
     # specify an order of a list of objects
     def input_order(self, object_list,label=None):
         random.shuffle(object_list)
-        if self.logic!=None:
-            object_list=self.logic.input_order(player=self,object_list=object_list
-                ,label=label)
+        # if self.logic!=None:
+        #     object_list=self.logic.input_order(player=self,object_list=object_list
+        #         ,label=label)
         return(object_list)
 
     # placeholder decision making: random

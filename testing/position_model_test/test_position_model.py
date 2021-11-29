@@ -1,15 +1,21 @@
+# generate training data for randomly conducted games
 import sys
-import datetime
 sys.path.append('C:/Users/Luke/AnacondaProjects/sbb')
 
-from NN_models import NN_Position_Model
+from Game import *
+from Logic import *
 
-m = NN_Position_Model()
+dc = Data_Collector()
+dc.init_board_collect()
 
-m.load_training_data(data_file='sample_input/training data 20211127-161222_data.p'
-    , names_file='sample_input/training data 20211127-161222_column_names.p')
+gb = Game_Batch()
+gb.add_data_collector(dc)
 
-start=datetime.datetime.now()
-m.train_bool(epochs=1000)
-m.save_model(folder='sample_output',filename='sample_board_prediction')
-print(datetime.datetime.now()-start, 'elapsed')
+l = NN_Logic()
+l.load_model(label = 'board', filepath='sample_output/sample_board_prediction.p')
+
+gb.logic = l
+
+gb.execute_game_batch(10000, verbose_lvl=0)
+
+dc.export_data('board')

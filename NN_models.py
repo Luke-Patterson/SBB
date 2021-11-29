@@ -19,7 +19,8 @@ class NN_Position_Model:
     def __init__(self):
         pass
 
-    def load_training_data(self, data_files, names_file, mtype = 'board', pandas = False):
+    def load_training_data(self, data_files, names_file, mtype = 'board', pandas = False,
+        max_train_size = None):
         first = True
         for f in data_files:
             if first:
@@ -31,11 +32,14 @@ class NN_Position_Model:
                     pickle.load(open(f, 'rb'))])
 
 
+        if max_train_size != None:
+            train_data = train_data[0:max_train_size, :]
+
         # make sure the column names are as expected for this programming
         base_columns = pickle.load(
-            open("C:/AnacondaProjects/sbb/prod/training_data/board_base_column_names.p",'rb'))
+            open("C:/Users/Luke/AnacondaProjects/sbb/prod/training_data/board_base_column_names.p",'rb'))
         assert base_columns == train_columns
-
+        self.train_columns = train_columns
         # split training data into X and Y vars
         if pandas:
             self.full_train = train_data[:,0:999]
@@ -60,17 +64,18 @@ class NN_Position_Model:
 
     def set_bool_model(self):
         print('Number of Parameters:',self.n_xvars)
-        self.model = nn.Sequential(nn.Linear(self.n_xvars,self.n_xvars*4),
+        self.model = nn.Sequential(nn.Linear(self.n_xvars,round(self.n_xvars/4)),
                               nn.ReLU(),
-                              nn.Linear(self.n_xvars*4, self.n_xvars*8),
+                              nn.Linear(round(self.n_xvars/4), round(self.n_xvars/8)),
                               nn.ReLU(),
-                              nn.Linear(self.n_xvars*8, self.n_xvars*16),
-                              nn.ReLU(),
-                              nn.Linear(self.n_xvars*16, 1),
+                              # nn.Linear(self.n_xvars*8, self.n_xvars*16),
+                              # nn.ReLU(),
+                              # nn.Linear(self.n_xvars*16, 1),
+                              nn.Linear(round(self.n_xvars/8), 1),
                               nn.Sigmoid())
-        self.model.batch_size=128
-        #self.model.to(torch.device('cuda:0'))
-        self.model.to(torch.device('cpu'))
+        self.model.batch_size=32
+        self.model.to(torch.device('cuda:0'))
+        #self.model.to(torch.device('cpu'))
 
     def train_bool(self,epochs=5000, pandas = False):
         xtrain=self.xtrain
@@ -81,8 +86,8 @@ class NN_Position_Model:
         transform = transforms.Compose([transforms.ToTensor(),
                                 transforms.Normalize((0.5,), (0.5,)),
                               ])
-        #device=torch.device('cuda:0')
-        device=torch.device('cpu')
+        device=torch.device('cuda:0')
+        #device=torch.device('cpu')
         if pandas:
             trainset=torch.from_numpy(np.concatenate((xtrain.values,ytrain.values),axis=1)).to(device)
         else:
@@ -101,7 +106,7 @@ class NN_Position_Model:
             running_loss = 0
             correct=0
             for n, obs in enumerate(trainset):
-                if n % 1 == 0:
+                if n % 10000 == 0 and n != 0:
                     print(n,'batches of', len(trainset),'for this epoch completed')
                     print('Runtime:',datetime.datetime.now() - start)
                 # split up the batch into labels and features
@@ -130,6 +135,6 @@ class NN_Position_Model:
     def save_model(self,folder,filename):
         pickle.dump(self.model, open(folder+filename+".p", "wb" ) )
         # save the features used
-        feats=pd.Series(self.xtrain.columns)
+        feats=pd.Series(self.train_columns)
         feats=feats.str.replace('"','')
         feats.to_csv(folder+filename+'_feats_used.csv',index=False)

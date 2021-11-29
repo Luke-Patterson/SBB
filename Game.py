@@ -14,6 +14,7 @@ class Game_Batch:
     def __init__(self):
         self.data_collector = None
         self.players = []
+        self.logic = None
 
     def add_data_collector(self, dc):
         self.data_collector = dc
@@ -31,6 +32,11 @@ class Game_Batch:
         Player6= Player('Player6')
         Player7= Player('Player7')
         self.players=[Player0,Player1,Player2,Player3,Player4,Player5,Player6,Player7]
+        self.assign_logic(self.logic)
+        
+    def assign_logic(self, logic):
+        for i in self.players:
+            logic.add_to_player(i)
 
     # execute a set number of games
     def execute_game_batch(self, num, show_game_num=True, show_runtime = True, **kwargs):
@@ -257,7 +263,10 @@ class Game:
 
             # collect data on what the starting board of each player looks like
             if self.data_collector != None:
-                self.data_collector.collect_board_data(p)
+                board_record = self.data_collector.collect_board_data(p)
+                # if logic is present, make a prediction about probability of winning
+                if p.logic != None:
+                    p.logic.predict_board_win_prob(board_record)
 
         self.pair_opponents()
 

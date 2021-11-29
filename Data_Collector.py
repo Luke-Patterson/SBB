@@ -17,7 +17,7 @@ class Labeled_Matrix:
 
 class Data_Collector:
 
-    def __init__(self, game = None, save_interval = 1000,
+    def __init__(self, game = None, save_interval = None,
         filename = 'training data '+time.strftime("%Y%m%d-%H%M%S"),
         folder = 'output/', csv = False):
         self.position_decision_collect = False
@@ -126,6 +126,7 @@ class Data_Collector:
             self.current_turn_data['board'] = np.append(self.current_turn_data['board'],
                 board_record)
 
+            return board_record
 
 
     # backfill whether combat was lost or not for each of the turn's results
@@ -165,7 +166,7 @@ class Data_Collector:
 
             self.current_game_data['board'] = np.array([])
 
-            if self.game_id % self.save_interval == 0:
+            if self.save_interval != None and self.game_id % self.save_interval == 0:
                 self.export_data('board')
 
     # export data as a pickled np matrix and or csv

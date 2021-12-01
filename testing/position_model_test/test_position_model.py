@@ -12,7 +12,7 @@ gb = Game_Batch()
 gb.add_data_collector(dc)
 
 l = NN_Logic()
-l.load_model(label = 'board', filepath='sample_output/sample_board_prediction.p')
+l.load_model(label = 'board', filepath='sample_output/sample_board_prediction_xgb.p')
 
 gb.logic = l
 

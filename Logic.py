@@ -1,6 +1,7 @@
 import torch
 import pickle
 from datetime import datetime
+import numpy as np
 
 class NN_Logic:
 
@@ -17,8 +18,9 @@ class NN_Logic:
         self.models[label] = pickle.load(open(filepath, 'rb'))
 
     def predict_board_win_prob(self, board_record):
-        x = list(board_record.values())
+        X = list(board_record.values())
         start = datetime.now()
-        predict=self.models['board'](torch.Tensor(x).float().to(torch.device('cuda:0')))
+        #predict=self.models['board'](torch.Tensor(x).float().to(torch.device('cuda:0')))
+        predict= self.models['board'].predict(np.array([X]))
         print(datetime.now() - start)
         import pdb; pdb.set_trace()

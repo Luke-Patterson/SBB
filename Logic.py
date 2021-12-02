@@ -1,4 +1,4 @@
-import torch
+#import torch
 import pickle
 from datetime import datetime
 import numpy as np
@@ -21,6 +21,10 @@ class NN_Logic:
         X = list(board_record.values())
         start = datetime.now()
         #predict=self.models['board'](torch.Tensor(x).float().to(torch.device('cuda:0')))
-        predict= self.models['board'].predict(np.array([X]))
+        predict= self.models['board'].predict_proba(np.array([X]))
         print(datetime.now() - start)
+        print(self.player.board)
+        print('Round',self.player.game.turn_counter)
+        print('Predicted win probability:',predict)
+
         import pdb; pdb.set_trace()

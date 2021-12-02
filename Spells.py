@@ -109,6 +109,7 @@ def Genies_Wish_effect(spell):
         'Evil Twin'
     ]
     elig_spells = elig_spells + [i for i in spell.get_owner().game.spells if i.name in elig_target_spells]
+    elig_spells = [i for i in elig_spells if i.lvl <= spell.get_owner().lvl]
     # ensure selected spell has legal targets
     while True:
         selected = random.choice(elig_spells)

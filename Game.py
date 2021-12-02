@@ -33,10 +33,11 @@ class Game_Batch:
         Player7= Player('Player7')
         self.players=[Player0,Player1,Player2,Player3,Player4,Player5,Player6,Player7]
         self.assign_logic(self.logic)
-        
+
     def assign_logic(self, logic):
         for i in self.players:
-            logic.add_to_player(i)
+            if logic != None:
+                deepcopy(logic).add_to_player(i)
 
     # execute a set number of games
     def execute_game_batch(self, num, show_game_num=True, show_runtime = True, **kwargs):

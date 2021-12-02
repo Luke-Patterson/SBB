@@ -1,6 +1,7 @@
 import sys
 import datetime
 sys.path.append('C:/Users/Luke/AnacondaProjects/sbb')
+sys.path.append('C:/AnacondaProjects/sbb')
 
 from NN_models import NN_Position_Model
 from NN_models import XGB_Position_Model
@@ -19,7 +20,7 @@ m = XGB_Position_Model()
 
 m.load_training_data(data_files=['sample_input/training data 20211128-092615_data.p']
     , names_file='sample_input/training data 20211128-092615_column_names.p',
-    max_train_size = 100000)
+    max_train_size = 1000)
 
 start=datetime.datetime.now()
 m.train_bool()

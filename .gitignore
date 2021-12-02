@@ -1,1 +1,4 @@
-prod/training_data/*
+prod/training_data
+prod/models
+testing/position_model_test/sample_input
+testing/position_model_test/sample_output

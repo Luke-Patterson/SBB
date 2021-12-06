@@ -100,6 +100,7 @@ class Character:
 
         if 'Dwarf' in self.type:
             self.get_owner().dwarves_bought += 1
+        self.get_owner().purchased_this_turn.append(self)
 
 
     def create_copy(self, owner, origin, plain_copy = False, inshop=False):

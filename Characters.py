@@ -2692,3 +2692,10 @@ for i in objs:
     obj=locals()[i]
     if isinstance(obj, Character):
         master_char_list.append(obj)
+
+# if directly called, create a csv with chars
+
+if __name__ == "__main__":
+    import pandas as pd
+    df = pd.DataFrame([i.__dict__ for i in master_char_list])
+    df.to_csv('output/char_list.csv')

@@ -15,10 +15,11 @@ gb = Game_Batch()
 gb.add_data_collector(dc)
 
 l = NN_Logic()
-l.load_model(label = 'board', filepath='sample_output/board_win_model 20211202-154502.p')
+l.load_model(label = 'board', filepath='sample_output/sample_board_prediction_xgb.p')
 
 gb.logic = l
+gb.random_logic = False
 
-gb.execute_game_batch(10000, verbose_lvl=4)
+gb.execute_game_batch(10000, verbose_lvl=0)
 
 dc.export_data('board')

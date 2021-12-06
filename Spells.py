@@ -1080,3 +1080,8 @@ for i in objs:
     obj=locals()[i]
     if isinstance(obj, Spell):
         master_spell_list.append(obj)
+
+if __name__ == "__main__":
+    import pandas as pd
+    df = pd.DataFrame([i.__dict__ for i in master_spell_list])
+    df.to_csv('output/spell_list.csv')

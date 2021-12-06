@@ -11,10 +11,11 @@ import itertools
 import random
 
 class Game_Batch:
-    def __init__(self):
+    def __init__(self, logic= None, random_logic = True):
         self.data_collector = None
         self.players = []
-        self.logic = None
+        self.logic = logic
+        self.random_logic = random_logic
 
     def add_data_collector(self, dc):
         self.data_collector = dc
@@ -37,7 +38,8 @@ class Game_Batch:
     def assign_logic(self, logic):
         for i in self.players:
             if logic != None:
-                deepcopy(logic).add_to_player(i)
+                copy(logic).add_to_player(i)
+                i.random_logic = self.random_logic
 
     # execute a set number of games
     def execute_game_batch(self, num, show_game_num=True, show_runtime = True, **kwargs):
@@ -54,6 +56,7 @@ class Game_Batch:
 
             self.clear_players()
             self.generate_default_players()
+
             g.run_game(players=self.players)
 
             if show_runtime:
@@ -264,10 +267,11 @@ class Game:
 
             # collect data on what the starting board of each player looks like
             if self.data_collector != None:
-                board_record = self.data_collector.collect_board_data(p)
+                self.data_collector.collect_board_data(p)
+                #board_record = self.data_collector.collect_board_data(p)
                 # if logic is present, make a prediction about probability of winning
-                if p.logic != None:
-                    p.logic.predict_board_win_prob(board_record)
+                # if p.logic != None:
+                #     p.logic.predict_board_win_prob(board_record)
 
         self.pair_opponents()
 

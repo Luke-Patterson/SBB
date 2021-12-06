@@ -38,6 +38,7 @@ class Spell:
         player.spell_purchased_this_turn = True
         player.shop.remove(self)
         self.purchased = True
+        player.purchased_this_turn.append(self)
         self.cast(player)
 
     def cast(self, owner, in_combat=False, random_target = False):

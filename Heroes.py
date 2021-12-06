@@ -920,3 +920,8 @@ for i in objs:
     obj=locals()[i]
     if isinstance(obj, Hero):
         master_hero_list.append(obj)
+
+if __name__ == "__main__":
+    import pandas as pd
+    df = pd.DataFrame([i.__dict__ for i in master_hero_list])
+    df.to_csv('output/hero_list.csv')

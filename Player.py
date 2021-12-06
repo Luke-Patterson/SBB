@@ -13,7 +13,7 @@ from datetime import datetime
 import collections
 
 class Player:
-    def __init__(self, name:str, logic=None):
+    def __init__(self, name:str, logic=None, random_logic = True):
         self.name=name
         self.player_id = None
         self.game = None
@@ -25,6 +25,7 @@ class Player:
         self.spell_hand=[]
         # track what chars went into hand this turn
         self.to_hand_this_turn=[]
+        self.purchased_this_turn=[]
         # list to hold  units used for an upgrade separate
         self.upgrade_limbo=[]
         self.shop=[]
@@ -33,12 +34,14 @@ class Player:
         self.lvl =2
         self.xp=0
         self.start_turn_gold=2
+        self.total_gold_this_turn = 0
         self.current_gold=0
         self.next_turn_addl_gold=0
         self.treasures=[]
         # list of all treasures obtained during a game (can't be obtained again)
         self.obtained_treasures = []
         self.logic=logic
+        self.random_logic = random_logic
         self.spell_played_this_turn = False
         self.names_of_spells_this_turn = []
         self.spell_purchased_this_turn = False
@@ -86,7 +89,6 @@ class Player:
             'Morgan_le_Fay_5_life_used':False,'Snow_Angel_good_chars_bought':0,
             'Mask_effect_used':False}
 
-
     def choose_hero(self, choices):
 
         hero = self.input_choose(choices, label='hero selection')
@@ -132,7 +134,7 @@ class Player:
             self.current_gold = math.floor(self.current_gold * 1.2) + self.start_turn_gold + self.next_turn_addl_gold
         else:
             self.current_gold = self.start_turn_gold + self.next_turn_addl_gold
-
+        self.total_gold_this_turn = self.current_gold
         # reset turn-specific trackers
         self.next_turn_addl_gold = 0
         self.spell_played_this_turn = False
@@ -200,6 +202,8 @@ class Player:
                 if hasattr(i,'name') and i.name == "Cat's Call":
                     selected = i
             if selected=='roll':
+                if self.game.data_collector != None:
+                    self.game.data_collector.collect_purchase_data(self, selected)
                 self.roll_shop()
             elif selected=='pass':
                 if self.game.verbose_lvl>=2:
@@ -212,13 +216,13 @@ class Player:
                 self.spell_hand.remove(selected)
                 selected.cast(self)
             else:
+                if self.game.data_collector != None:
+                    self.game.data_collector.collect_purchase_data(self, selected)
                 selected.purchase(self)
                 upgrade_chars = self.check_for_upgrades()
                 self.process_upgrades(upgrade_chars[0], upgrade_chars[1])
                 self.check_effects()
             self.check_quest_completion()
-
-
 
         if self.input_bool('lock shop'):
             self.locked_shop = True
@@ -280,20 +284,25 @@ class Player:
 
     # deploy characters from hand to field
     def deploy_for_battle(self):
-        options = self.hand + ['empty']
-        for pos in range(1,8):
-            # if dead, follow the last starting board as closely as possible
-            if self.dead:
+        # if player is dead, follow the last starting board as closely as possible
+        if self.dead:
+            for pos in range(1,8):
                 if self.starting_board[pos] == None:
                     pass
                 elif self.starting_board[pos] in self.hand:
                     self.starting_board[pos].add_to_board(plyr=self, position = pos)
 
-            else:
+        # TODO: Remove len() != 11, as it's a testing thing
+        elif self.random_logic or len(self.hand) != 11:
+            options = self.hand + ['empty']
+
+            for pos in range(1,8):
                 selected = self.input_choose(options, label='position_' + str(pos))
                 if selected != 'empty':
                     selected.add_to_board(plyr=self, position = pos)
                     options.remove(selected)
+        else:
+            self.logic.deploy_chars_decision()
 
         self.deployed_chars = [i for i in self.board.values() if i != None]
         # apply all effects relevant to the board
@@ -367,6 +376,7 @@ class Player:
             self.start_turn_gold += 1
 
         self.to_hand_this_turn=[]
+        self.purchased_this_turn=[]
 
         #self.check_for_upgrades()
 

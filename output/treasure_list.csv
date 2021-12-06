@@ -1,0 +1,79 @@
+,name,lvl,abils,owner,last_owner,Summoning_Portal_counter
+0,Book of Heroes,2,[Book of Heroes Global Slay Effect],,,0
+1,Bounty Board,2,[Bounty Board Global Slay Effect],,,0
+2,Corrupted Heartwood,2,[Corrupted Heartwood Effect],,,0
+3,Crown of Atlas,2,[Crown of Atlas Effect],,,0
+4,Dancing Sword,2,[Dancing Sword Effect],,,0
+5,Dark Contract,2,[Dark Contract Effect],,,0
+6,Dragon Nest,2,[Dragon Effect],,,0
+7,Fairy Tail,2,[Fairy Tail Effect],,,0
+8,Fountain of Youth,2,[Fountain of Youth Effect],,,0
+9,Hermes' Boots,2,[],,,0
+10,Jack's Jumping Beans,2,[Jack's Jumping Beans triggered ability],,,0
+11,Locked Chest,2,[Locked Chest Counter],,,0
+12,Monster Manual,2,[Monster Manual Death Effect],,,0
+13,Needle Nose Daggers,2,"[Needle Nose Daggers Effect, Needle Nose Daggers destroy effect]",,,0
+14,Noble Steed,2,[Noble Steed Pump Effect],,,0
+15,Piggie Bank,2,[],,,0
+16,Ring of Meteors,2,[Ring of Meteors triggered effect],,,0
+17,Ring of Regeneration,2,[Ring of Regeneration],,,0
+18,Rune Stones,2,"[Rune Stones treasure level effect, Rune Stones destroy effect]",,,0
+19,Secret Stash,2,[Secret Stash destroy effect],,,0
+20,Shepherd's Sling,2,[Shepherd's Sling Effect],,,0
+21,Spinning Wheel,2,[Spinning Wheel triggered ability],,,0
+22,Ancient Sarcophagus,3,[Ancient Sarcophagus Death Effect],,,0
+23,Bad Moon,3,[Bad Moon Global Slay Effect],,,0
+24,Cloak of the Assassin,3,[Cloak of the Assassin Effect],,,0
+25,Crystal Ball,3,[Crystal Ball Target Effect],,,0
+26,Deepstone Mine,3,[Deepstone Mine Effect],,,0
+27,Eye of Ares,3,"[Eye of Ares Effect, Eye of Ares give opponent effect]",,,0
+28,Fancy Pants,3,[Fancy Pants Effect],,,0
+29,Haunted Helm,3,[Haunted Helm Effect],,,0
+30,Merlin's Hat,3,[Merlin's Hat shop effect],,,0
+31,Power Orb,3,[Power Orb Effect],,,0
+32,Ring of Revenge,3,[Ring of Revenge Death Effect],,,0
+33,Sting,3,[Sting Effect],,,0
+34,Tell Tale Quiver,3,[Tell Tale Quiver Effect],,,0
+35,Treasure Map,2,"[Treasure Map treasure level effect, Treasure Map destroy effect]",,,0
+36,Coin of Charron,4,[Coin of Charron Death Effect],,,0
+37,Deck of Many Things,4,[Deck of Many Things triggered ability],,,0
+38,Dwarven Forge,4,[Dwarven Forge upgrade reduce effect],,,0
+39,Fool's Gold,4,"[Fool's Gold triggered ability, Fools Gold Spell Effect]",,,0
+40,Forking Rod,4,[Forking Rod Spell Multiplier],,,0
+41,Gloves of Thieving,4,[Gloves of Thieving effect],,,0
+42,Hidden Cache,4,[Hidden Cache effect],,,0
+43,Moonsong Horn,4,"[Moonsong Horn Pump Effect, Moonsong Horn shop effect]",,,0
+44,Other Hand of Vekna,5,[Other Hand of Vekna Death Effect],,,0
+45,Reduplicator,4,"[Reduplicator reset triggered ability, Reduplicator summon triggered ability]",,,0
+46,Ring of Rage,4,[Ring of Rage Effect],,,0
+47,Six of Shields,4,[Six of Shields Effect],,,0
+48,Sky Castle,4,[Sky Castle Effect],,,0
+49,Summoning Portal,4,"[Summoning Portal reset triggered ability, Summoning Portal summon counting ability, Summoning Portal summon triggered ability]",,,0
+50,Ambrosia,5,[Ambrosia triggered effect],,,0
+51,Dracula's Saber,5,[Dracula Saber triggered effect],,,0
+52,Exploding Mittens,5,[Exploding Mittens Death Effect],,,0
+53,Hand of Midas,5,[Hand of Midas Effect],,,0
+54,Helm of the Ugly Gosling,5,[Helm of the Ugly Gosling triggered effect],,,0
+55,Horn of Olympus,5,[],,,0
+56,Mimic,5,[Mimic Treasure Effect Multiplier],,,0
+57,Monkey's Paw,5,"[Monkey's triggered ability, Monkey's Paw]",,,0
+58,Staff of the Old Toad,5,[],,,0
+59,Sword of Fire and Ice,5,[Sword of Fire and Ice Effect],,,0
+60,The 9th Book of Merlin,5,[The 9th Book of Merlin Effect],,,0
+61,Tree of Life,5,[Tree of Life Death Effect],,,0
+62,Embiggening Stone,6,[Embiggening Stone Effect],,,0
+63,Evil Eye,6,[Evil Eye Support Effect Multiplier],,,0
+64,Ivory Owl,6,[Ivory Owl triggered ability],,,0
+65,Pandora's Box,6,[Pandoras Box Counter],,,0
+66,Phoenix Feather,6,[Phoenix Feather resummon ability],,,0
+67,Spear of Achilles,6,[Spear of Achilles attack effect],,,0
+68,The Ark,6,[The Ark triggered ability],,,0
+69,The Singing Sword,6,[The Singing Sword Effect],,,0
+70,Wand of Weirding,6,[Wand of Weirding Spell Multiplier],,,0
+71,Black Prism,7,[],,,0
+72,Excalibur,7,[Excalibur Effect],,,0
+73,Fairy Queen's Wand,7,[Fairy Queen's Wand Effect],,,0
+74,Magic Sword +100,7,[Magic Sword +100 Effect],,,0
+75,Mirror Mirror,7,"[Mirror Mirror assign respawn ability, Mirror Mirror Death Effect, Mirror Mirror reset respawn ability]",,,0
+76,The Holy Grail,7,[The Holy Grail triggered ability],,,0
+77,The Round Table,7,[The Round Table triggered ability],,,0

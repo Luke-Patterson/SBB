@@ -21,7 +21,7 @@ Book_of_Heroes = Treasure(
                 type='global slay',
                 condition = lambda self, condition_obj, triggered_obj:
                     triggered_obj != None and
-                    condition_obj != None and 
+                    condition_obj != None and
                     condition_obj.check_alignment('Good') and
                     triggered_obj.check_alignment('Evil')
             )
@@ -1762,3 +1762,8 @@ for i in objs:
     obj=locals()[i]
     if isinstance(obj, Treasure):
         master_treasure_list.append(obj)
+
+if __name__ == "__main__":
+    import pandas as pd
+    df = pd.DataFrame([i.__dict__ for i in master_treasure_list])
+    df.to_csv('output/treasure_list.csv')

@@ -11,7 +11,7 @@ from NN_models import XGB_Position_Model
 m = XGB_Position_Model()
 
 m.load_training_data(data_files=['training_data/'+file for file in os.listdir('training_data/') if '_data.p'
-    in file], names_file='training_data/board_base_column_names.p')
+    in file], names_file='training_data/training data 20211203-145100_column_names.p')
 
 start=datetime.datetime.now()
 m.train_bool()

@@ -1,0 +1,54 @@
+,name,lvl,base_cost,current_cost,effect,battle_effect,target,selected_target,spell_for_turn,owner,effects,purchased,ignore_multiplier
+0,Eenie Meenie Miney Mo,2,2,2,<function Eenie_Meenie_Miney_Mo_effect at 0x00000258F29DD9D0>,,,,True,,[],False,False
+1,Free Roll,2,0,0,<function Free_Roll_effect at 0x00000258F2B8EC10>,,,,True,,[],False,False
+2,Forbidden Fruit,2,0,0,<function Forbidden_Fruit_effect at 0x00000258F2B8ECA0>,,,,True,,[],False,False
+3,For Glory!,2,1,1,<function For_Glory_effect at 0x00000258F2B8EDC0>,,,,True,,[],False,False
+4,Genie's Wish,2,1,1,<function Genies_Wish_effect at 0x00000258F2B8EE50>,,,,True,,[],False,False
+5,Magic Research,2,1,1,<function Magic_Research_effect at 0x00000258F2B8EF70>,,Magic Research Target,,True,,[],False,False
+6,Shard of the Ice Queen,2,0,0,<function Shard_of_the_Ice_Queen_effect at 0x00000258F2B96040>,,Shard of the Ice Queen Target,,True,,[],False,True
+7,Shrink Spell,2,2,2,<function Shrink_Spell_effect at 0x00000258F2B96160>,,,,True,,[],False,False
+8,Sugar and Spice,2,1,1,<function Sugar_and_Spice_effect at 0x00000258F2B961F0>,,Sugar and Spice Target,,True,,[],False,False
+9,Witch's Brew,2,1,1,<function Witchs_Brew_effect at 0x00000258F2B96310>,,Witch's Brew Target,,True,,[],False,False
+10,Beauty's Influence,3,1,1,<function Beautys_Influence_effect at 0x00000258F2B96430>,,Beauty's Influence Target,,True,,[],False,False
+11,Candy Rain,3,0,0,<function Candy_Rain_effect at 0x00000258F2B96550>,,,,True,,[],False,False
+12,Earthquake,3,1,1,<function Earthquake_effect at 0x00000258F2B96670>,,,,True,,[],False,False
+13,Falling Stars,3,0,0,<function Falling_Stars_effect at 0x00000258F2B96790>,,,,True,,[],False,False
+14,Flourish,3,2,2,<function <lambda> at 0x00000258F2B96820>,,Flourish Target,,True,,[],False,False
+15,Gingerbread Party,3,3,3,<function <lambda> at 0x00000258F2B96A60>,,,,True,,[],False,False
+16,Healing Potion,3,1,1,<function <lambda> at 0x00000258F2B96AF0>,,,,False,,[],False,False
+17,Kidnap,3,2,2,<function Kidnap_effect at 0x00000258F2B96C10>,,,,True,,[],False,False
+18,Luna's Grace,3,1,1,<function Lunas_Grace_effect at 0x00000258F2B96CA0>,,Luna's Grace target,,True,,[],False,False
+19,Mixawizzle,3,1,1,<function Mixawizzle_effect at 0x00000258F2B96D30>,,Mixawizzle target,,False,,[],False,True
+20,Potion of Heroism,3,1,1,<function <lambda> at 0x00000258F2B96DC0>,,Potion of Heroism target,,False,,[],False,False
+21,Spinning Gold,3,1,1,<function Spinning_Gold_effect at 0x00000258F2B96EE0>,,,,True,,[],False,False
+22,True Love's Kiss,3,3,3,<function True_Loves_Kiss_effect at 0x00000258F2B96F70>,,True Love's Kiss target,,True,,[],False,True
+23,Turkish Delight,3,4,4,<function <lambda> at 0x00000258F2B99040>,,,,True,,[],False,False
+24,Wish Upon a Star,3,5,5,<function Wish_Upon_A_Star_effect at 0x00000258F2B99160>,,,,True,,[],False,False
+25,Worm Root,3,2,2,<function Worm_Root_effect at 0x00000258F2B991F0>,,Worm Root Target,,True,,[],False,False
+26,Blessing of Athena,4,3,3,<function Blessing_of_Athena_effect at 0x00000258F2B99310>,<function Blessing_of_Athena_battle_effect at 0x00000258F2B993A0>,,,True,,[],False,False
+27,Burning Palm,4,2,2,<function Burning_Palm_effect at 0x00000258F2B99430>,,Burning Palm Target,,True,,[],False,False
+28,Cat's Call,4,2,2,<function Cats_Call_effect at 0x00000258F2B99550>,,,,True,,[],False,False
+29,Feed the Kraken,4,0,0,<function Feed_the_Kraken_effect at 0x00000258F2B995E0>,,Feed the Kraken Target,,True,,[],False,False
+30,Fireball,4,1,1,<function Fireball_effect at 0x00000258F2B99700>,,,,True,,[],False,False
+31,Hi Ho!,4,4,4,<function Hi_Ho_effect at 0x00000258F2B99790>,,,,True,,[],False,False
+32,Lightning Bolt,4,2,2,<function Lightning_Bolt_effect at 0x00000258F2B998B0>,,,,True,,[],False,False
+33,Masquerade Ball,4,2,2,<function Masquerade_Ball_effect at 0x00000258F2B99940>,,,,True,,[],False,False
+34,Merlin's Test,4,3,3,<function Merlins_Test_effect at 0x00000258F2B99A60>,,Merlin's Test Target,,True,,[],False,False
+35,Queen's Grace,4,2,2,<function Queens_Grace_effect at 0x00000258F2B99AF0>,,Queen's Grace target,,True,,[],False,False
+36,Ride of the Valkyries,4,2,2,<function Ride_of_the_Valkyries_effect at 0x00000258F2B99C10>,,,,True,,[],False,False
+37,Stoneskin,4,2,2,<function Stoneskin_effect at 0x00000258F2B99CA0>,,Stoneskin Target,,True,,[],False,False
+38,The End,4,3,3,<function The_End_effect at 0x00000258F2B99D30>,,The End Target,,True,,[],False,False
+39,Toil and Trouble,4,2,2,<function Toil_and_Trouble_effect at 0x00000258F2B99DC0>,,,,True,,[],False,False
+40,Lucky Coin,5,0,0,<function Lucky_Coin_effect at 0x00000258F2B99E50>,,,,False,,[],False,False
+41,Poison Apple,5,2,2,<function Poison_Apple_effect at 0x00000258F2B99F70>,,,,True,,[],False,False
+42,Shrivel,5,2,2,<function Shrivel_effect at 0x00000258F2B9C0D0>,,,,True,,[],False,False
+43,Croc Bait,6,6,6,<function Croc_Bait_effect at 0x00000258F2B9C160>,,Croc Bait Target,,True,,[],False,False
+44,Drink Me Potion,6,1,1,<function Drink_Me_Potion_effect at 0x00000258F2B9C1F0>,,,,False,,[],False,True
+45,Evil Twin,6,8,8,<function Evil_Twin_effect at 0x00000258F2B9C280>,,Evil Twin Target,,True,,[],False,False
+46,Fog,6,2,2,<function Fog_effect at 0x00000258F2B9C430>,,,,True,,[],False,False
+47,Gigantify,6,4,4,<function Gigantify_effect at 0x00000258F2B9C4C0>,,Gigantify Target,,True,,[],False,False
+48,Hugeify,6,4,4,<function Hugeify_effect at 0x00000258F2B9C550>,,Hugeify Target,,True,,[],False,False
+49,It Was All a Dream,6,4,4,<function It_Was_All_A_Dream_effect at 0x00000258F2B9C5E0>,,,,True,,[],False,False
+50,Knighthood,6,12,12,<function Knighthood_effect at 0x00000258F2B9C670>,,Knighthood Target,,True,,[],False,False
+51,Pigomorph,6,5,5,<function Pigomorph_effect at 0x00000258F2B9C820>,,,,True,,[],False,False
+52,Smite,6,3,3,<function Smite_effect at 0x00000258F2B9C940>,,,,True,,[],False,False

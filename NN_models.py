@@ -166,7 +166,7 @@ class XGB_Position_Model:
         for f in data_files:
             if first:
                 data = pickle.load(open(f, 'rb'))
-                train_columns = pickle.load(open(names_file, 'rb'))
+                colnames = pickle.load(open(names_file, 'rb'))
                 first = False
             else:
                 data = scipy.sparse.vstack([data,
@@ -174,6 +174,9 @@ class XGB_Position_Model:
 
         if type(data).__name__ == 'coo_matrix':
             data = data.tocsr()
+
+        self.idx_feat_cut =len(colnames['index_cols'])
+        self.feat_out_cut = len(colnames['index_cols'])+len(colnames['all_features'])
 
         if max_train_size == None:
             max_train_size =data.shape[0]
@@ -184,32 +187,37 @@ class XGB_Position_Model:
         # base_columns = pickle.load(
         #     open("training_data/board_base_column_names.p",'rb'))
         # assert base_columns == train_columns
-        self.train_columns = train_columns
+        self.colnames = colnames
         # split training data into X and Y vars
-        if pandas:
-            self.full_train = train_data[:,0:999]
-            self.xtrain = pd.DataFrame.sparse.from_spmatrix(train_data[:,0:998])
-            self.xtrain.columns = train_columns[0:998]
-            self.xtrain = self.xtrain.set_index(['game_id','player_id'], drop = True)
-            self.ytrain = pd.DataFrame.sparse.from_spmatrix(train_data[:,998])
-            assert train_columns[998] == 'battle_not_lost'
-            self.ytrain.columns = ['battle_not_lost']
-            # drop columns that are all the same value
-            nunique = self.xtrain.apply(pd.Series.nunique)
-            cols_to_drop = nunique[nunique == 1].index
-            print('dropping',len(cols_to_drop),'columns with all same values')
-            self.xtrain=self.xtrain.drop(cols_to_drop, axis=1)
-            self.n_xvars = len(self.xtrain.columns)
-        else:
-            self.full_train = train_data[:,0:999]
-            self.unseen_data = self.unseen_data[:,0:999]
-            self.xtrain = train_data[:,0:998]
-            # for now, just train against winning the fight
-            self.ytrain = train_data[:,998]
-            self.n_xvars = 998
+        # if pandas:
+        #     self.full_train = train_data[:,0:feat_out_cut+1]
+        #     self.xtrain = pd.DataFrame.sparse.from_spmatrix(train_data[:,0:998])
+        #     self.xtrain.columns = train_columns[0:998]
+        #     self.xtrain = self.xtrain.set_index(['game_id','player_id'], drop = True)
+        #     self.ytrain = pd.DataFrame.sparse.from_spmatrix(train_data[:,998])
+        #     assert train_columns[998] == 'battle_not_lost'
+        #     self.ytrain.columns = ['battle_not_lost']
+        #     # drop columns that are all the same value
+        #     nunique = self.xtrain.apply(pd.Series.nunique)
+        #     cols_to_drop = nunique[nunique == 1].index
+        #     print('dropping',len(cols_to_drop),'columns with all same values')
+        #     self.xtrain=self.xtrain.drop(cols_to_drop, axis=1)
+        #     self.n_xvars = len(self.xtrain.columns)
+        # else:
+
+        # both x and y data (y data is fight_not_lost, the first column in outcomes cols)
+        assert colnames['outcome_cols'][0] == 'battle_not_lost'
+        self.full_train = train_data[:,self.idx_feat_cut:self.feat_out_cut+1]
+        self.unseen_data = self.unseen_data[:,self.idx_feat_cut:self.feat_out_cut+1]
+
+        self.xtrain = train_data[:,self.idx_feat_cut:self.feat_out_cut]
+        # for now, just train against winning the fight
+        self.ytrain = train_data[:,self.feat_out_cut]
+        self.n_xvars = len(colnames['all_features'])
+
 
     def train_bool(self,**kwargs):
-        self.n_xvars=998
+
         # X = pd.DataFrame.sparse.from_spmatrix(self.xtrain)
         y=  pd.DataFrame.sparse.from_spmatrix(self.ytrain)
         X = self.xtrain
@@ -262,8 +270,8 @@ class XGB_Position_Model:
         gcvj = np.cumsum([len(x) for x in param_grid.values()])[-1]
 
         #No. of jobs
+        #bcvj = int(gcvj)
         bcvj = int(gcvj)
-
         #unwrapping list values of default parameters
         default_params_xgb = {}
 
@@ -283,9 +291,9 @@ class XGB_Position_Model:
         #predictions - inputs to confusion matrix
         train_predictions = clf.predict(X_train)
         test_predictions = clf.predict(X_test)
-        unseen_predictions = clf.predict(self.unseen_data[:,0:998])
+        unseen_predictions = clf.predict(self.unseen_data[:,0:self.feat_out_cut-self.idx_feat_cut])
 
-        y_unseen = pd.DataFrame.sparse.from_spmatrix(self.unseen_data[:,998])
+        y_unseen = pd.DataFrame.sparse.from_spmatrix(self.unseen_data[:,self.feat_out_cut-self.idx_feat_cut])
         #confusion matrices
         cfm_train = confusion_matrix(y_train, train_predictions)
         cfm_test = confusion_matrix(y_test, test_predictions)
@@ -306,7 +314,8 @@ class XGB_Position_Model:
 
         #Area Under the Receiver Operating Characteristic Curve
         test_ras = roc_auc_score(y_test.values, clf.predict_proba(X_test)[:,1])
-        unseen_ras = roc_auc_score(y_unseen.values, clf.predict_proba(self.unseen_data[:,0:998])[:,1])
+        unseen_ras = roc_auc_score(y_unseen.values, clf.predict_proba(
+            self.unseen_data[:,0:self.feat_out_cut-self.idx_feat_cut])[:,1])
 
         #best parameters
         bp = clf.best_params_
@@ -341,12 +350,12 @@ class XGB_Position_Model:
         self.model = clf
         print('Training runtime:',datetime.datetime.now() - start)
         # sample predict
-        sample_X = self.unseen_data[0:50,0:998]
+        sample_X = self.unseen_data[0:50,0:self.feat_out_cut-self.idx_feat_cut]
         start = datetime.datetime.now()
         preds = clf.predict_proba(sample_X)
         print(preds)
         print('Predict runtime for 50 obs:',datetime.datetime.now() - start)
-        
+
         # print('RMSE: %.2f' % cv_results['test-rmse-mean'].min())
         #
         # params={'objective':'reg:squarederror',
@@ -363,6 +372,9 @@ class XGB_Position_Model:
     def save_model(self,folder,filename):
         pickle.dump(self.model, open(folder+filename+".p", "wb" ) )
         # save the features used
-        feats=pd.Series(self.train_columns)
+        feats=pd.Series(self.colnames)
         feats=feats.str.replace('"','')
         feats.to_csv(folder+filename+'_feats_used.csv',index=False)
+
+    def load_model(self, label, filepath):
+        self.model = pickle.load(open(filepath, 'rb'))

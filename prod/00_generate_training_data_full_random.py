@@ -11,13 +11,16 @@ gb = Game_Batch()
 
 gb.add_data_collector(dc)
 
-try:
-    gb.execute_game_batch(50000, verbose_lvl=0)
-except Exception as e:
-    print(e)
-    dc.export_data('board')
-    dc.export_data('purchased')
-    import pdb; pdb.set_trace()
+for _ in range(50):
+    try:
+        gb.execute_game_batch(1000, verbose_lvl=0)
+        dc.export_data('board')
+        dc.export_data('purchased')
+    except Exception as e:
+        print(e)
+        dc.export_data('board')
+        dc.export_data('purchased')
+        import pdb; pdb.set_trace()
 
 dc.export_data('board')
 dc.export_data('purchased')

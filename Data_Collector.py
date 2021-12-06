@@ -20,7 +20,6 @@ class Labeled_Matrix:
 class Data_Collector:
 
     def __init__(self, game = None, save_interval = None,
-        filename = 'training data '+time.strftime("%Y%m%d-%H%M%S"),
         folder = 'output/', csv = False):
         self.board_collect = False
         self.purchased_collect = False
@@ -31,7 +30,6 @@ class Data_Collector:
         self.all_data = {}
         self.game_id = 0
         self.save_interval = save_interval
-        self.filename = filename
         self.folder = folder
         self.csv=csv
 
@@ -338,16 +336,21 @@ class Data_Collector:
 
 
     # export data as a pickled np matrix and or csv
-    def export_data(self, data_type):
+    def export_data(self, data_type, drop = True,filename = None):
+        if filename == None:
+            filename='training data '+time.strftime("%Y%m%d-%H%M%S")
         assert data_type in ['purchased','board']
         pickle.dump(self.all_data[data_type], open(self.folder+
-            self.filename+"_"+data_type+"_data.p", "wb" ) )
+            filename+"_"+data_type+"_data.p", "wb" ) )
 
         pickle.dump(self.features, open( self.folder +
-            self.filename+"_"+data_type+"_column_names.p", "wb" ) )
+            filename+"_"+data_type+"_column_names.p", "wb" ) )
 
         # save as csv
         if self.csv:
             df = pd.DataFrame.sparse.from_spmatrix(self.all_data[data_type])
             df.columns = self.features[data_type+"_cols"]
-            df.to_csv(self.folder+self.filename+'_'+data_type+'.csv', index = False)
+            df.to_csv(self.folder+filename+'_'+data_type+'.csv', index = False)
+
+        if drop == True:
+            self.all_data[data_type] = None

@@ -9,13 +9,15 @@ from Logic import *
 
 
 dc = Data_Collector()
-dc.init_board_collect()
+dc.init_data_collect()
 
 gb = Game_Batch()
 gb.add_data_collector(dc)
 
 l = NN_Logic()
-l.load_model(label = 'board', filepath='sample_output/sample_board_prediction_xgb.p')
+l.load_char_position_models()
+import pdb; pdb.set_trace()
+#l.load_model(label = 'board', filepath='sample_output/sample_board_prediction_xgb.p')
 
 gb.logic = l
 gb.random_logic = False

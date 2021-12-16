@@ -20,11 +20,10 @@ from NN_models import XGB_Position_Model
 m = XGB_Position_Model()
 
 m.load_training_data(data_files=['C:/AnacondaProjects/SBB/prod/training_data/'+file for
-    file in os.listdir('C:/AnacondaProjects/SBB/prod/training_data/') if '_data.p'
-    in file],names_file='sample_input/training data 20211203-145100_column_names.p',
-    max_train_size = 1000)
+    file in os.listdir('C:/AnacondaProjects/SBB/prod/training_data/') if 'board'
+    in file], max_train_size = 1000)
 
 start=datetime.datetime.now()
-m.train_bool()
+m.train_bool(target_var='Position1_Baby Dragon',filter_var='Char_in_hand_Baby Dragon')
 m.save_model(folder='sample_output/',filename='sample_board_prediction_xgb')
 print(datetime.datetime.now()-start, 'elapsed')

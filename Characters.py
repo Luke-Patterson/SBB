@@ -474,8 +474,7 @@ Brave_Princess = Character(
 
 def Darkwood_Creeper_effect(source, damaged_char):
     damaged_char.change_atk_mod(1 * (1 + source.upgraded))
-    if source not in source.get_owner().board.values():
-        import pdb; pdb.set_trace()
+    assert source in source.get_owner().board.values()
 
 # Darkwood Creeper
 Darkwood_Creeper = Character(

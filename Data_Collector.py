@@ -12,10 +12,10 @@ from c_Character import Character
 from c_Spell import Spell
 
 # matrix with labels for the columns
-class Labeled_Matrix:
-    def __init__(self, cols):
-        self.col_labels = {i: n for n,i in enumerate(cols)}
-        self.data = np.array([])
+# class Labeled_Matrix:
+#     def __init__(self, cols):
+#         self.col_labels = {i: n for n,i in enumerate(cols)}
+#         self.data = np.array([])
 
 class Data_Collector:
 
@@ -28,15 +28,19 @@ class Data_Collector:
         self.current_turn_data = {}
         self.current_game_data = {}
         self.all_data = {}
+        self.all_data_labels = {}
+        self.all_data_cats = {}
         self.game_id = 0
         self.save_interval = save_interval
         self.folder = folder
         self.csv=csv
 
     # start collecting data on the starting board of each combat
-    def init_data_collect(self):
+    def init_data_collect(self, save = True):
         self.board_collect = True
         self.purchased_collect = True
+        self.board_save = save
+        self.purchased_save = save
 
         # features used by both board and purchase data
         self.features['all_features'] = []
@@ -75,6 +79,12 @@ class Data_Collector:
                 # add column indicating whether an upgraded character was in hand
                 self.features['all_features'].append('Char_upgr_in_hand_'+char.name)
                 self.features['in_hand'].append('Char_upgr_in_hand_'+char.name)
+
+                # add column in dicating atk and health
+                self.features['all_features'].append('Char_atk_'+char.name)
+                self.features['in_hand'].append('Char_atk_'+char.name)
+                self.features['all_features'].append('Char_hlth_'+char.name)
+                self.features['in_hand'].append('Char_hlth_'+char.name)
 
                 # add column indicating whether a character was purchased
                 self.features['purchased_features'].append('Char_purchased_'+char.name)
@@ -151,6 +161,8 @@ class Data_Collector:
 
         self.all_data['board'] = None
         self.all_data['purchased'] = None
+        self.all_data_labels['board'] = None
+        self.all_data_labels['purchased'] = None
 
         self.current_turn_data['board'] = np.array([])
         self.current_game_data['board'] = np.array([])
@@ -163,6 +175,36 @@ class Data_Collector:
         self.features['purchased_cols'] =  self.features['index_cols'] + self.features['purchased_features'] +\
             self.features['all_features'] + self.features['outcome_cols']
 
+        # for each type of data collected, define column labels and what kind of
+        # data they are (index, feature, outcome)
+        if self.purchased_collect:
+            self.all_data_labels['purchased'] = {n: label for n, label in enumerate(
+                self.features['index_cols']
+                + self.features['purchased_features']
+                + self.features['all_features']
+                + self.features['outcome_cols'])}
+
+            feat_len = len(self.features['purchased_features'] +
+                self.features['all_features'])
+            idx_len = len(self.features['index_cols'])
+            self.all_data_cats['purchased'] = {'index': [i for i in range(idx_len)],
+                'features':[i+idx_len for i in range(feat_len)],
+                'outcomes': [i+idx_len+feat_len for i in range(len(self.features['outcome_cols']))]
+            }
+
+        if self.board_collect:
+            self.all_data_labels['board'] = {n: label for n, label in enumerate(
+                self.features['index_cols']
+                + self.features['board_features']
+                + self.features['all_features']
+                + self.features['outcome_cols'])}
+            feat_len = len(self.features['board_features'] +
+                self.features['all_features'])
+            idx_len = len(self.features['index_cols'])
+            self.all_data_cats['board'] = {'index': [i for i in range(idx_len)],
+                'features':[i+idx_len for i in range(feat_len)],
+                'outcomes': [i+idx_len+feat_len for i in range(len(self.features['outcome_cols']))]
+            }
 
     # collect purchase data from current player
     def collect_purchase_data(self, player, purchase):
@@ -196,6 +238,9 @@ class Data_Collector:
                     purchase_record['Char_upgr_in_hand_'+obj.name] = 1
                 else:
                     purchase_record['Char_in_hand_'+obj.name] = 1
+                purchase_record['Char_atk_'+obj.name] = obj.atk()
+                purchase_record['Char_hlth_'+obj.name] = obj.hlth()
+
 
             # note which hero the player is
             purchase_record['Hero_'+player.hero.name] = 1
@@ -230,6 +275,9 @@ class Data_Collector:
                         board_record['Char_upgr_'+char.name] = 1
                     else:
                         board_record['Char_'+char.name] = 1
+                    board_record['Char_atk_'+char.name] = char.atk()
+                    board_record['Char_hlth_'+char.name] = char.hlth()
+
                 else:
                     board_record['Position'+str(pos)+'_None'] = 1
 
@@ -240,6 +288,9 @@ class Data_Collector:
                     board_record['Char_upgr_in_hand_'+obj.name] = 1
                 else:
                     board_record['Char_in_hand_'+obj.name] = 1
+                board_record['Char_atk_'+obj.name] = obj.atk()
+                board_record['Char_hlth_'+obj.name] = obj.hlth()
+
 
             # note which hero the player is
             board_record['Hero_'+player.hero.name] = 1
@@ -259,34 +310,35 @@ class Data_Collector:
             board_record['total_atk'] = sum([i.atk() for i in player.board.values() if i != None])
             board_record['total_hlth'] = sum([i.hlth() for i in player.board.values() if i != None])
 
+
             self.current_turn_data['board'] = np.append(self.current_turn_data['board'],
                 board_record)
 
     # backfill whether combat was lost or not for each of the turn's results
     def backfill_combat_results(self):
-        if self.board_collect:
+        if self.board_save:
             for rec in self.current_turn_data['board']:
                 player = self.game.all_players[rec['player_id']]
                 battle_not_lost = player.last_combat != 'lost'
                 rec['battle_not_lost'] = int(battle_not_lost)
             self.current_game_data['board'] = np.append(self.current_game_data['board'],
                 self.current_turn_data['board'])
-            self.current_turn_data['board'] = np.array([])
+        self.current_turn_data['board'] = np.array([])
 
-        if self.purchased_collect:
+        if self.purchased_save:
             for rec in self.current_turn_data['purchased']:
                 player = self.game.all_players[rec['player_id']]
                 battle_not_lost = player.last_combat != 'lost'
                 rec['battle_not_lost'] = int(battle_not_lost)
             self.current_game_data['purchased'] = np.append(self.current_game_data['purchased'],
                 self.current_turn_data['purchased'])
-            self.current_turn_data['purchased'] = np.array([])
+        self.current_turn_data['purchased'] = np.array([])
 
 
     # backfill which position each player finished in
     def backfill_game_results(self):
         self.game_id += 1
-        if self.board_collect:
+        if self.board_save:
             for rec in self.current_game_data['board']:
                 player = self.game.all_players[rec['player_id']]
                 for i in range(1,9):
@@ -310,7 +362,7 @@ class Data_Collector:
             if self.save_interval != None and self.game_id % self.save_interval == 0:
                 self.export_data('board')
 
-        if self.purchased_collect:
+        if self.purchased_save:
             for rec in self.current_game_data['purchased']:
                 player = self.game.all_players[rec['player_id']]
                 for i in range(1,9):
@@ -340,16 +392,20 @@ class Data_Collector:
         if filename == None:
             filename='training data '+time.strftime("%Y%m%d-%H%M%S")
         assert data_type in ['purchased','board']
-        pickle.dump(self.all_data[data_type], open(self.folder+
+
+        payload = {}
+        payload['data'] = self.all_data[data_type]
+        payload['columns'] = self.all_data_labels[data_type]
+        payload['feature_types'] = self.all_data_cats[data_type]
+        assert payload['data'].shape[1] == len(payload['columns'])
+        pickle.dump(payload, open(self.folder+
             filename+"_"+data_type+"_data.p", "wb" ) )
 
-        pickle.dump(self.features, open( self.folder +
-            filename+"_"+data_type+"_column_names.p", "wb" ) )
 
         # save as csv
         if self.csv:
             df = pd.DataFrame.sparse.from_spmatrix(self.all_data[data_type])
-            df.columns = self.features[data_type+"_cols"]
+            df.columns = self.all_data_labels[data_type].values()
             df.to_csv(self.folder+filename+'_'+data_type+'.csv', index = False)
 
         if drop == True:

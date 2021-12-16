@@ -624,8 +624,9 @@ class Character:
                         owner2 = self.atk_target.owner
                     else:
                         owner2 = self.atk_target.last_owner
-                    owner2.check_for_triggers('attacked',triggering_obj= self.atk_target, effect_kwargs=
-                        {'attacker':self})
+                    if owner2 != None:
+                        owner2.check_for_triggers('attacked',triggering_obj= self.atk_target, effect_kwargs=
+                            {'attacker':self})
 
                     # take damage function will return boolean indicating whether target was slain
                     slay_result = self.atk_target.take_damage(self.atk(), source = self, attacking = True)

@@ -1,0 +1,2 @@
+# SBB
+An experiment in teaching AI to play the card game Storybook Brawl (SBB). SBB's rules and all the object have been fully programmed, and can play games by making random decisions. I am currently playing around with a XGBoost algorithm that can predict win probability based on a current board state, and building forward vision for the computer to anticipate what positions are optimal for a given hand of characters.
